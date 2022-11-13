@@ -18,14 +18,14 @@ async def start_message(message: types.Message):
 async def other_messages(message: types.Message):
     low = message.text.lower()
     # *  gdz...
-    try:
-        if ('алг ' in low) or ('alg' in low):
-            num = int(low.split(' ')[1])
-            for mediagroup in await GDZ.algru(num):
-                await message.answer_media_group(mediagroup)
-    except ValueError:
-        await message.answer('Неправильно введен номер задания')
-        await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN)
+    # try:
+    if ('алг ' in low) or ('alg' in low):
+        num = int(low.split(' ')[1])
+        for mediagroup in await GDZ.algru(num):
+            await message.answer_media_group(mediagroup)
+    # except ValueError:
+    #     await message.answer('Неправильно введен номер задания')
+    #     await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN)
 
 
 if __name__ == '__main__':
