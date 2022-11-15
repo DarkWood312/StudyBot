@@ -1,5 +1,4 @@
 import psycopg2
-from config import sql
 
 
 class Sqdb:
@@ -18,7 +17,7 @@ class Sqdb:
             return if_exist[0]
 
     def add_user(self, user_id, username, user_name, user_surname, upscaled=False):
-        if not (sql.is_user_exists(user_id)):
+        if not (Sqdb('containers-us-west-126.railway.app', '4LqiTuqiRbofen68DIm5', '6466', 'railway', 'postgres').is_user_exists(user_id)):
             with self.connection:
                 self.cursor.execute(
                     f"INSERT INTO users (user_id, username, user_name, user_surname, upscaled) VALUES ({user_id}, '{username}', '{user_name}', '{user_surname}', {upscaled})")
