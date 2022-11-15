@@ -4,7 +4,8 @@ from aiogram import types
 
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 '
-                  'Safari/537.36 '
+                  'Safari/537.36 ',
+    'referer': 'https://gdz.ru/class-10/algebra/alimov-15/'
 }
 
 
