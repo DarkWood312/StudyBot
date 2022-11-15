@@ -18,11 +18,12 @@ async def start_message(message: types.Message):
 async def other_messages(message: types.Message):
     low = message.text.lower()
     # *  gdz...
-    if ('алг ' in low) or ('alg' in low):
-        num = int(low.split(' ')[1])
-        await message.answer(await GDZ.algru(num))
-        # for mediagroup in await GDZ.algru(num):
-        #     await message.answer_media_group(mediagroup)
+    if ('алг' in low) or ('alg' in low):
+        subject, num = low.split(' ', 1)
+        num = int(num)
+        response = await GDZ.algeu(num, doc=True if subject[-1].strip() in ['к', 'k'] else False)
+        for group in response:
+            await message.answer_media_group(group)
 
 
 if __name__ == '__main__':
