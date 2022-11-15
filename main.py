@@ -20,8 +20,9 @@ async def other_messages(message: types.Message):
     # *  gdz...
     if ('алг ' in low) or ('alg' in low):
         num = int(low.split(' ')[1])
-        for mediagroup in await GDZ.algru(num):
-            await message.answer_media_group(mediagroup)
+        await message.answer(await GDZ.algru(num))
+        # for mediagroup in await GDZ.algru(num):
+        #     await message.answer_media_group(mediagroup)
 
 
 if __name__ == '__main__':
