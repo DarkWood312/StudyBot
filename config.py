@@ -1,4 +1,7 @@
 from sqdb import Sqdb
+from dotenv import load_dotenv
+from os import environ
 
-token = '5681353642:AAHQ-tjhwjU0yX7rrZWS2BHqXWhrcAS4jww'
-sql = Sqdb('containers-us-west-126.railway.app', '4LqiTuqiRbofen68DIm5', '6466', 'railway', 'postgres')
+load_dotenv()
+token = environ['API_TOKEN']
+sql = Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'], environ['SQL_USER'])

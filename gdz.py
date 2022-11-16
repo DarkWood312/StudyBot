@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from aiogram import types
+from config import sql
 
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 '
@@ -21,12 +22,26 @@ async def process(arr: list, doc: bool = False, sep: int = 10):
 
 class GDZ:
 
-    async def algeu(num: int, doc: bool = False):
-        imgs = []
+    def __init__(self, user_id):
+        self.doc = bool(sql.get_data(user_id, 'upscaled'))
+
+    async def alg_euroki(self, num: int):
         r = requests.get(
             f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}',
             headers=headers)
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
-        for img in imgs_block:
-            imgs.append(img['src'])
-        return await process(imgs, doc=doc)
+        imgs = [i['src'] for i in imgs_block]
+        return await process(imgs, doc=self.doc)
+
+    # async def phiz_reshak(self, num):
+    #     r = requests.get(f'https://reshak.ru/otvet/otvet10.php?otvet1={num}', headers=headers)
+    #     imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='lcol').find_all('img')
+    #     imgs = ['https://reshak.ru' + str(i.get('src')) for i in imgs_block]
+    #     # return imgs_block[0]['src']
+    #     return await process(imgs, doc=self.doc)
+
+    async def geom_megaresheba(self, num: int):
+        r = requests.get(f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}', headers=headers)
+        imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
+        imgs = [i.find('img')['src'] for i in imgs_block]
+        return await process(imgs, doc=self.doc)

@@ -3,3 +3,5 @@ requests==2.28.1
 beautifulsoup4==4.11.1
 lxml==4.9.1
 psycopg2==2.9.5
+emoji==1.2.0
+python-dotenv==0.21.0

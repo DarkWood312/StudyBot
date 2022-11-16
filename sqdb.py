@@ -1,3 +1,5 @@
+from os import environ
+
 import psycopg2
 
 
@@ -17,7 +19,8 @@ class Sqdb:
             return if_exist[0]
 
     def add_user(self, user_id, username, user_name, user_surname, upscaled=False):
-        if not (Sqdb('containers-us-west-126.railway.app', '4LqiTuqiRbofen68DIm5', '6466', 'railway', 'postgres').is_user_exists(user_id)):
+        if not (Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'],
+                     environ['SQL_USER']).is_user_exists(user_id)):
             with self.connection:
                 self.cursor.execute(
                     f"INSERT INTO users (user_id, username, user_name, user_surname, upscaled) VALUES ({user_id}, '{username}', '{user_name}', '{user_surname}', {upscaled})")
@@ -29,3 +32,7 @@ class Sqdb:
         with self.connection:
             self.cursor.execute(f'SELECT {data} FROM users WHERE user_id = {user_id}')
             return self.cursor.fetchone()[0]
+
+    def change_data_int(self, user_id, name, data):
+        with self.connection:
+            self.cursor.execute(f'UPDATE users set {name} = {data} WHERE user_id = {user_id}')
