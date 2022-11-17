@@ -49,7 +49,7 @@ async def other_messages(message: types.Message):
         for group in response:
             await message.answer_media_group(group)
 
-    elif ('геом' in low) or ('geom' in low):
+    elif ('гео' in low) or ('geo' in low):
         subject, num = low.split(' ', 1)
         num = int(num)
         response = await gdz.geom_megaresheba(num)
