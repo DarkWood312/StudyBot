@@ -16,7 +16,7 @@ async def main_message(message: types.Message):
     await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
                          reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
                              KeyboardButton(emojize(
-                                 f'Сжатие - {":check_mark_button:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":cross_mark:"}'))))
+                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
 
 @dp.message_handler(commands=['start'])
@@ -39,7 +39,7 @@ async def other_messages(message: types.Message):
         await message.answer(
             f'Отправка фотографий без сжатия {"включена" if sql.get_data(message.from_user.id, "upscaled") == True else "выключена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
-                f'Сжатие - {":check_mark_button:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":cross_mark:"}'))))
+                f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
         # *  gdz...
     elif ('алг' in low) or ('alg' in low):
