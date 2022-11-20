@@ -30,7 +30,7 @@ async def start_message(message: types.Message):
 @dp.message_handler(commands=['author'])
 async def author(message: types.Message):
     await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
-                         f'\nРепозиторий: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}', parse_mode=types.ParseMode.HTML)
+                         f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}', parse_mode=types.ParseMode.HTML)
 
 
 @dp.message_handler()
