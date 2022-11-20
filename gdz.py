@@ -35,21 +35,18 @@ class GDZ:
         r = requests.get(
             f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}',
             headers=headers)
+        if r.status_code != 200:
+            raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
         imgs = [i['src'] for i in imgs_block]
         return await process(imgs, doc=self.doc)
-
-    # async def phiz_reshak(self, num):
-    #     r = requests.get(f'https://reshak.ru/otvet/otvet10.php?otvet1={num}', headers=headers)
-    #     imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='lcol').find_all('img')
-    #     imgs = ['https://reshak.ru' + str(i.get('src')) for i in imgs_block]
-    #     # return imgs_block[0]['src']
-    #     return await process(imgs, doc=self.doc)
 
     async def geom_megaresheba(self, num: int):
         r = requests.get(
             f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}',
             headers=headers)
+        if r.status_code != 200:
+            raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
         return await process(imgs, doc=self.doc)
@@ -58,6 +55,8 @@ class GDZ:
         r = requests.get(
             f'https://www.euroki.org/gdz/ru/angliyskiy/10_klass/vaulina-spotlight-693/str-{page}',
             headers=headers)
+        if r.status_code != 200:
+            raise ConnectionError
         block_ans = BeautifulSoup(r.content, 'lxml').find(class_='txt_version').find_all('p')
         # for i in block_ans:
         #     if i.find('strong') is not None:
