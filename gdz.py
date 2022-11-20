@@ -12,11 +12,17 @@ headers = {
 }
 
 
-async def process(arr: list, doc: bool = False, sep: int = 10):
-    if doc:
-        l = [types.InputMediaDocument(i) for i in arr]
+async def process(arr, doc: bool = False):
+    if isinstance(arr, list):
+        sep = 10
+        if doc:
+            l = [types.InputMediaDocument(i) for i in arr]
+        else:
+            l = [types.InputMediaPhoto(i) for i in arr]
+        # return [l[i:i + sep] for i in range(0, len(l), sep)]
     else:
-        l = [types.InputMediaPhoto(i) for i in arr]
+        sep = 4096
+        l = arr
     return [l[i:i + sep] for i in range(0, len(l), sep)]
 
 
@@ -41,7 +47,26 @@ class GDZ:
     #     return await process(imgs, doc=self.doc)
 
     async def geom_megaresheba(self, num: int):
-        r = requests.get(f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}', headers=headers)
+        r = requests.get(
+            f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}',
+            headers=headers)
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
         return await process(imgs, doc=self.doc)
+
+    async def ang_euroki(self, page: int):
+        r = requests.get(
+            f'https://www.euroki.org/gdz/ru/angliyskiy/10_klass/vaulina-spotlight-693/str-{page}',
+            headers=headers)
+        block_ans = BeautifulSoup(r.content, 'lxml').find(class_='txt_version').find_all('p')
+        # for i in block_ans:
+        #     if i.find('strong') is not None:
+        #         text_ans.append(f'<b>{i.get_text()}</b>')
+        #     elif i.has_attr('class'):
+        #         if i['class'][0] == 'higlighr':
+        #             text_ans.append(f'<u>{i.get_text()}</u>')
+        #     else:
+        #         text_ans.append(i.get_text())
+        # return await process('\n'.join(text_ans))
+        text_ans = '\n'.join([i.get_text() for i in block_ans])
+        return await process(text_ans)

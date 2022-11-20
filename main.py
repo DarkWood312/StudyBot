@@ -56,6 +56,14 @@ async def other_messages(message: types.Message):
         for group in response:
             await message.answer_media_group(group)
 
+    elif ('анг' in low) or ('ang' in low):
+        subject, page = low.split(' ', 1)
+        page = int(page)
+        response = await gdz.ang_euroki(page)
+        for text in response:
+            await message.answer(text)
+        await message.answer(f'https://www.euroki.org/gdz/ru/angliyskiy/10_klass/vaulina-spotlight-693/str-{page}')
+
     # elif ('физ' in low) or ('phiz' in low):
     #     subject, num = low.split(' ', 1)
     #     num = int(num)
