@@ -65,7 +65,7 @@ async def other_messages(message: types.Message):
         sql.change_data_int(message.from_user.id, 'upscaled',
                             False if sql.get_data(message.from_user.id, 'upscaled') == True else True)
         await message.answer(
-            f'Отправка фотографий без сжатия {"включена" if sql.get_data(message.from_user.id, "upscaled") == True else "выключена"}!',
+            f'Отправка фотографий с сжатием {"выключена" if sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
