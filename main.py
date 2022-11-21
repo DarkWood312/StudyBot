@@ -20,6 +20,26 @@ async def main_message(message: types.Message):
                                  f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
 
+async def average_mark(message: types.Message, amount_of_digits_after_comma=2, is_undefined_symbols=True):
+    text_of_marks = message.text.replace(' ', '')
+    list_of_marks = []
+    list_of_undefined_symbols = []
+    for mark in text_of_marks:
+        if mark in ['2', '3', '4', '5']:
+            list_of_marks.append(int(mark))
+        else:
+            list_of_undefined_symbols.append(mark)
+
+    average = (sum(list_of_marks) / len(list_of_marks)).__round__(amount_of_digits_after_comma)
+
+    await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=types.ParseMode.HTML)
+    if is_undefined_symbols:
+        if len(list_of_undefined_symbols) > 0:
+            await message.answer(
+                f'Неизвестные символы, которые не учитывались: <code>{list_of_undefined_symbols}</code>',
+                parse_mode=types.ParseMode.HTML)
+
+
 @dp.message_handler(commands=['start'])
 async def start_message(message: types.Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
@@ -30,7 +50,8 @@ async def start_message(message: types.Message):
 @dp.message_handler(commands=['author'])
 async def author(message: types.Message):
     await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
-                         f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}', parse_mode=types.ParseMode.HTML)
+                         f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
+                         parse_mode=types.ParseMode.HTML)
 
 
 @dp.message_handler()
@@ -47,6 +68,9 @@ async def other_messages(message: types.Message):
             f'Отправка фотографий без сжатия {"включена" if sql.get_data(message.from_user.id, "upscaled") == True else "выключена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+
+    elif message.text.lower().startswith('2' or '3' or '4' or '5'):
+        await average_mark(message)
 
     # *  gdz...
     elif ('алг' in low) or ('alg' in low):
