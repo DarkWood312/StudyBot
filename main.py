@@ -69,7 +69,7 @@ async def other_messages(message: types.Message):
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
-    elif message.text.lower().startswith('2' or '3' or '4' or '5'):
+    elif low.startswith('2') | low.startswith('3') | low.startswith('4') | low.startswith('5'):
         await average_mark(message)
 
     # *  gdz...
