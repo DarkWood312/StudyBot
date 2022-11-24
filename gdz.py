@@ -39,7 +39,7 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
         imgs = [i['src'] for i in imgs_block]
-        return await process(imgs, doc=self.doc)
+        return await process(imgs, self.doc)
 
     async def geom_megaresheba(self, num: int):
         r = requests.get(
@@ -49,7 +49,7 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
-        return await process(imgs, doc=self.doc)
+        return await process(imgs, self.doc)
 
     async def ang_euroki(self, page: int):
         r = requests.get(
@@ -69,3 +69,9 @@ class GDZ:
         # return await process('\n'.join(text_ans))
         text_ans = '\n'.join([i.get_text() for i in block_ans])
         return await process(text_ans)
+
+    async def him_putin(self, tem: int, work: int, var: int):
+        r = requests.get(f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}')
+        data = r.json()['editions'][0]['images']
+        imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
+        return await process(imgs, self.doc)

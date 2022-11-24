@@ -75,9 +75,9 @@ async def other_messages(message: types.Message):
     # *  gdz...
     elif ('алг' in low) or ('alg' in low):
         try:
-            subject, num = low.split(' ', 1)
-            num = int(num)
-            response = await gdz.alg_euroki(num)
+            subject, var = low.split(' ', 1)
+            var = int(var)
+            response = await gdz.alg_euroki(var)
             for group in response:
                 await message.answer_media_group(group)
         except ValueError:
@@ -87,9 +87,9 @@ async def other_messages(message: types.Message):
 
     elif ('гео' in low) or ('geo' in low):
         try:
-            subject, num = low.split(' ', 1)
-            num = int(num)
-            response = await gdz.geom_megaresheba(num)
+            subject, var = low.split(' ', 1)
+            var = int(var)
+            response = await gdz.geom_megaresheba(var)
             for group in response:
                 await message.answer_media_group(group)
         except ValueError:
@@ -109,6 +109,20 @@ async def other_messages(message: types.Message):
             await message.answer('Некорректное число!')
         except ConnectionError:
             await message.answer('Не найдено страницы с таким номером!')
+
+    elif ('хим' in low) or ('him' in low):
+        try:
+            subject, tem, work, var = low.split(' ', 3)
+            var = int(var)
+            tem = int(tem)
+            work = int(work)
+            response = await gdz.him_putin(tem, work, var)
+            for group in response:
+                await message.answer_media_group(group)
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except ConnectionError:
+            await message.answer('Не найдено заданием с таким номером!')
 
 
 if __name__ == '__main__':
