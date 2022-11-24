@@ -123,6 +123,8 @@ async def other_messages(message: types.Message):
             await message.answer('Некорректное число!')
         except ConnectionError:
             await message.answer('Не найдено заданием с таким номером!')
+        except KeyError:
+            await message.answer('Не найдено заданием с таким номером!')
 
 
 if __name__ == '__main__':
