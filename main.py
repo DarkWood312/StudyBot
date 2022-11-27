@@ -129,8 +129,10 @@ async def other_messages(message: types.Message):
             subject, page = low.split(' ', 1)
             page = int(page)
             response = await gdz.kist(page)
-            for group in response:
-                await message.answer_media_group(group)
+            if bool(sql.get_data(message.from_user.id, 'upscaled')):
+                await message.answer_photo(response)
+            else:
+                await message.answer_document(response)
         except ValueError:
             await message.answer('Некорректное число!')
         except:
