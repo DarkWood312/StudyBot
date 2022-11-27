@@ -54,7 +54,7 @@ async def author(message: types.Message):
                          parse_mode=types.ParseMode.HTML)
 
 
-@dp.message_handler()
+@dp.message_handler(content_types=types.ContentType.TEXT)
 async def other_messages(message: types.Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
@@ -125,6 +125,32 @@ async def other_messages(message: types.Message):
             await message.answer('Не найдено заданием с таким номером!')
         except KeyError:
             await message.answer('Не найдено заданием с таким номером!')
+
+
+@dp.message_handler(content_types=types.ContentType.ANY)
+async def other_content(message: types.Message):
+    if message.from_user.id == db.owner_id:
+        await message.answer(message.content_type)
+        match message.content_type:
+            case 'sticker':
+                await message.answer(hcode(message.sticker.file_id), parse_mode=types.ParseMode.HTML)
+            case 'photo':
+                await message.answer(hcode(message.photo[0].file_id), parse_mode=types.ParseMode.HTML)
+            case 'audio':
+                await message.answer(hcode(message.audio.file_id), parse_mode=types.ParseMode.HTML)
+            case 'document':
+                await message.answer(hcode(message.document.file_id), parse_mode=types.ParseMode.HTML)
+            case 'video':
+                await message.answer(hcode(message.video.file_id), parse_mode=types.ParseMode.HTML)
+            case 'video_note':
+                await message.answer(hcode(message.video_note.file_id), parse_mode=types.ParseMode.HTML)
+            case 'voice':
+                await message.answer(hcode(message.voice.file_id), parse_mode=types.ParseMode.HTML)
+            case _:
+                await message.answer('undefined content_type')
+    else:
+        await message.answer('Я еще не настолько умный')
+
 
 
 if __name__ == '__main__':
