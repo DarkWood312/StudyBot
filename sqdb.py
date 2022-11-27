@@ -33,6 +33,11 @@ class Sqdb:
             self.cursor.execute(f'SELECT {data} FROM users WHERE user_id = {user_id}')
             return self.cursor.fetchone()[0]
 
+    def get_data_table(self, mark_data, mark_name='description', data='file_id', table='docs'):
+        with self.connection:
+            self.cursor.execute(f"SELECT {data} FROM {table} WHERE {mark_name} = '{mark_data}'")
+            return self.cursor.fetchone()[0]
+
     def change_data_int(self, user_id, name, data):
         with self.connection:
             self.cursor.execute(f'UPDATE users set {name} = {data} WHERE user_id = {user_id}')

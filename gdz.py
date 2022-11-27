@@ -75,3 +75,23 @@ class GDZ:
         data = r.json()['editions'][0]['images']
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
         return await process(imgs, self.doc)
+
+    async def kist(self, page: int):
+        match page:
+            case 2 | 3:
+                return await process(sql.get_data_table('ist2'))
+            case 4 | 5:
+                return await process(sql.get_data_table('ist4'))
+            case 6 | 7:
+                return await process(sql.get_data_table('ist6'))
+            case 8 | 9:
+                return await process(sql.get_data_table('ist8'))
+            case 10 | 11:
+                return await process(sql.get_data_table('ist10'))
+            case 12 | 13:
+                return await process(sql.get_data_table('ist12'))
+            case 14 | 15:
+                return await process(sql.get_data_table('ist14'))
+            case _:
+                pass
+

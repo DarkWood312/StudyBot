@@ -82,7 +82,7 @@ async def other_messages(message: types.Message):
                 await message.answer_media_group(group)
         except ValueError:
             await message.answer('Некорректное число!')
-        except ConnectionError:
+        except:
             await message.answer('Не найдено заданием с таким номером!')
 
     elif ('гео' in low) or ('geo' in low):
@@ -94,7 +94,7 @@ async def other_messages(message: types.Message):
                 await message.answer_media_group(group)
         except ValueError:
             await message.answer('Некорректное число!')
-        except ConnectionError:
+        except:
             await message.answer('Не найдено заданием с таким номером!')
 
     elif ('анг' in low) or ('ang' in low):
@@ -121,10 +121,21 @@ async def other_messages(message: types.Message):
                 await message.answer_media_group(group)
         except ValueError:
             await message.answer('Некорректное число!')
-        except ConnectionError:
+        except:
             await message.answer('Не найдено заданием с таким номером!')
-        except KeyError:
+
+    elif ('кист' in low) or ('kist' in low):
+        try:
+            subject, page = low.split(' ', 1)
+            page = int(page)
+            response = await gdz.kist(page)
+            for group in response:
+                await message.answer_media_group(group)
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except:
             await message.answer('Не найдено заданием с таким номером!')
+            
 
 
 @dp.message_handler(content_types=types.ContentType.ANY)
