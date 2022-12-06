@@ -101,10 +101,9 @@ async def other_messages(message: types.Message):
         try:
             subject, page = low.split(' ', 1)
             page = int(page)
-            response = await gdz.ang_euroki(page)
-            for text in response:
-                await message.answer(text)
-            await message.answer(f'https://www.euroki.org/gdz/ru/angliyskiy/10_klass/vaulina-spotlight-693/str-{page}')
+            response = await gdz.ang_megaresheba(page)
+            for group in response:
+                await message.answer_media_group(group)
         except ValueError:
             await message.answer('Некорректное число!')
         except ConnectionError:
@@ -134,7 +133,6 @@ async def other_messages(message: types.Message):
             await message.answer('Некорректное число!')
         except:
             await message.answer('Не найдено заданием с таким номером!')
-            
 
 
 @dp.message_handler(content_types=types.ContentType.ANY)
@@ -160,7 +158,6 @@ async def other_content(message: types.Message):
                 await message.answer('undefined content_type')
     else:
         await message.answer('Я еще не настолько умный')
-
 
 
 if __name__ == '__main__':

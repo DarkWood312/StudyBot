@@ -51,24 +51,15 @@ class GDZ:
         imgs = [i.find('img')['src'] for i in imgs_block]
         return await process(imgs, self.doc)
 
-    async def ang_euroki(self, page: int):
+    async def ang_megaresheba(self, page: int):
         r = requests.get(
-            f'https://www.euroki.org/gdz/ru/angliyskiy/10_klass/vaulina-spotlight-693/str-{page}',
+            f'https://megaresheba.ru/publ/reshebnik/anglijskij/10_klass_spotlight_evans/{page}-str',
             headers=headers)
         if r.status_code != 200:
             raise ConnectionError
-        block_ans = BeautifulSoup(r.content, 'lxml').find(class_='txt_version').find_all('p')
-        # for i in block_ans:
-        #     if i.find('strong') is not None:
-        #         text_ans.append(f'<b>{i.get_text()}</b>')
-        #     elif i.has_attr('class'):
-        #         if i['class'][0] == 'higlighr':
-        #             text_ans.append(f'<u>{i.get_text()}</u>')
-        #     else:
-        #         text_ans.append(i.get_text())
-        # return await process('\n'.join(text_ans))
-        text_ans = '\n'.join([i.get_text() for i in block_ans])
-        return await process(text_ans)
+        imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='task', id='task').find_next().find_all('img')
+        imgs = [i['src'] for i in imgs_block]
+        return await process(imgs, self.doc)
 
     async def him_putin(self, tem: int, work: int, var: int):
         r = requests.get(f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}')
