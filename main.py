@@ -1,4 +1,6 @@
 import logging
+
+import aiogram.utils.exceptions
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from emoji.core import emojize
@@ -73,6 +75,19 @@ async def other_messages(message: types.Message):
         await average_mark(message)
 
     # *  gdz...
+    elif ('алгм' in low) or ('algm' in low):
+        try:
+            subject, paragaph, num = low.split(' ', 2)
+            paragaph = int(paragaph)
+            num = int(num)
+            response = await gdz.algm_pomogalka(paragaph, num)
+            for group in response:
+                await message.answer_media_group(group)
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except:
+            await message.answer('Не найдено заданием с таким номером!')
+
     elif ('алг' in low) or ('alg' in low):
         try:
             subject, var = low.split(' ', 1)
@@ -108,6 +123,8 @@ async def other_messages(message: types.Message):
             await message.answer('Некорректное число!')
         except ConnectionError:
             await message.answer('Не найдено страницы с таким номером!')
+        except aiogram.utils.exceptions.URLHostIsEmpty:
+            await message.answer(emojize('На сайте нет этого номера:sad_but_relieved_face:'))
 
     elif ('хим' in low) or ('him' in low):
         try:

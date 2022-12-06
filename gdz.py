@@ -41,6 +41,10 @@ class GDZ:
         imgs = [i['src'] for i in imgs_block]
         return await process(imgs, self.doc)
 
+    async def algm_pomogalka(self, paragraph: int, num: int):
+        return await process([f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'], self.doc)
+
+
     async def geom_megaresheba(self, num: int):
         r = requests.get(
             f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}',
