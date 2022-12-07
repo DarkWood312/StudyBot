@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from aiogram import types
+
+import db
 from config import sql
 
 headers = {
@@ -74,19 +76,19 @@ class GDZ:
     async def kist(self, page: int):
         match page:
             case 2 | 3:
-                return sql.get_data_table('ist2')
+                return db.kist_ids['ist2']
             case 4 | 5:
-                return sql.get_data_table('ist4')
+                return db.kist_ids['ist4']
             case 6 | 7:
-                return sql.get_data_table('ist6')
+                return db.kist_ids['ist6']
             case 8 | 9:
-                return sql.get_data_table('ist8')
+                return db.kist_ids['ist8']
             case 10 | 11:
-                return sql.get_data_table('ist10')
+                return db.kist_ids['ist10']
             case 12 | 13:
-                return sql.get_data_table('ist12')
+                return db.kist_ids['ist12']
             case 14 | 15:
-                return sql.get_data_table('ist14')
+                return db.kist_ids['ist14']
             case _:
                 pass
 

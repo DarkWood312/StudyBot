@@ -56,6 +56,14 @@ async def author(message: types.Message):
                          parse_mode=types.ParseMode.HTML)
 
 
+@dp.message_handler(commands=['docs', 'documents'])
+async def documents(message: types.Message):
+    inline_kb = types.InlineKeyboardMarkup()
+    algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
+    inline_kb.row(algm_button)
+    await message.answer('Документы', reply_markup=inline_kb)
+
+
 @dp.message_handler(content_types=types.ContentType.TEXT)
 async def other_messages(message: types.Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
@@ -175,6 +183,12 @@ async def other_content(message: types.Message):
                 await message.answer('undefined content_type')
     else:
         await message.answer('Я еще не настолько умный')
+
+
+@dp.callback_query_handler()
+async def callback(call: types.CallbackQuery):
+    if call.data == 'algm':
+        await call.message.answer_document(db.doc_ids['algm'])
 
 
 if __name__ == '__main__':
