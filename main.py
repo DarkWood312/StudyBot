@@ -2,6 +2,9 @@ import logging
 
 import aiogram.utils.exceptions
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext, filters
+from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
@@ -12,17 +15,17 @@ from config import token, sql
 
 logging.basicConfig(level=logging.DEBUG)
 bot = Bot(token=token)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=MemoryStorage())
 
 
-async def main_message(message: types.Message):
-    await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
-                         reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
-                             KeyboardButton(emojize(
-                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+class Marks(StatesGroup):
+    is_continue = State()
+    continue_ = State()
 
 
-async def average_mark(message: types.Message, amount_of_digits_after_comma=2, is_undefined_symbols=True):
+@dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
+async def average_mark(message: types.Message, state: FSMContext, amount_of_digits_after_comma=2,
+                       is_undefined_symbols=True):
     text_of_marks = message.text.replace(' ', '')
     list_of_marks = []
     list_of_undefined_symbols = []
@@ -32,31 +35,120 @@ async def average_mark(message: types.Message, amount_of_digits_after_comma=2, i
         else:
             list_of_undefined_symbols.append(mark)
 
-    average = (sum(list_of_marks) / len(list_of_marks)).__round__(amount_of_digits_after_comma)
+    await state.update_data(marks=list_of_marks)
 
-    await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=types.ParseMode.HTML)
+    average = (sum(list_of_marks) / len(list_of_marks)).__round__(amount_of_digits_after_comma)
+    better_mark_markup = types.InlineKeyboardMarkup()
+    to_5 = types.InlineKeyboardButton('Хочу 5', callback_data='want_5')
+    to_4 = types.InlineKeyboardButton('Хочу 4', callback_data='want_4')
+    to_3 = types.InlineKeyboardButton('Хочу 3', callback_data='want_3')
+    # cancel = types.InlineKeyboardButton('Отмена', callback_data='cancel')
+    if average < 4.6:
+        better_mark_markup.add(to_5)
+    if average < 3.6:
+        better_mark_markup.add(to_4)
+    if average < 2.6:
+        better_mark_markup.add(to_3)
+    # if average < 4.6:
+    #     better_mark_markup.add(cancel)
+
+    await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=types.ParseMode.HTML,
+                         reply_markup=better_mark_markup)
     if is_undefined_symbols:
         if len(list_of_undefined_symbols) > 0:
             await message.answer(
                 f'Неизвестные символы, которые не учитывались: <code>{list_of_undefined_symbols}</code>',
                 parse_mode=types.ParseMode.HTML)
+    if average < 4.6:
+        await Marks.continue_.set()
 
 
-@dp.message_handler(commands=['start'])
+# @dp.message_handler(state=Marks.continue_)
+# async def state_marks_continue_text(message: types.Message, state: FSMContext):
+#     await state.finish()
+#     await message.answer('Действие отменено')
+
+
+@dp.callback_query_handler(state=Marks.continue_)
+async def state_Marks_continue_(call: types.CallbackQuery, state: FSMContext):
+    fives = 0
+    fours = 0
+    threes = 0
+    if call.data == 'want_5':
+        marks = await state.get_data()
+        marks = marks['marks']
+        while sum(marks + [5] * fives) / len(marks + [5] * fives) < 4.6:
+            fives += 1
+        avg_5 = (sum(marks + [5] * fives) / len(marks + [5] * fives)).__round__(2)
+        await call.message.answer(f'Для *5* нужно:\n`{fives}` *пятерок* ({avg_5})', parse_mode=types.ParseMode.MARKDOWN)
+
+    elif call.data == 'want_4':
+        marks = await state.get_data()
+        marks = marks['marks']
+        while sum(marks + [5] * fives) / len(marks + [5] * fives) < 3.6:
+            fives += 1
+        avg_5 = (sum(marks + [5] * fives) / len(marks + [5] * fives)).__round__(2)
+        while sum(marks + [4] * fours) / len(marks + [4] * fours) < 3.6:
+            fours += 1
+        avg_4 = (sum(marks + [4] * fours) / len(marks + [4] * fours)).__round__(2)
+        await call.message.answer(
+            f'Для *4* нужно:\n`{fives}` *пятерок* ({avg_5}) _или_\n`{fours}` *четверок* ({avg_4})',
+            parse_mode=types.ParseMode.MARKDOWN)
+    elif call.data == 'want_3':
+        marks = await state.get_data()
+        marks = marks['marks']
+        while sum(marks + [5] * fives) / len(marks + [5] * fives) < 2.6:
+            fives += 1
+        avg_5 = (sum(marks + [5] * fives) / len(marks + [5] * fives)).__round__(2)
+        while sum(marks + [4] * fours) / len(marks + [4] * fours) < 2.6:
+            fours += 1
+        avg_4 = (sum(marks + [4] * fours) / len(marks + [4] * fours)).__round__(2)
+        while sum(marks + [3] * threes) / len(marks + [3] * threes) < 2.6:
+            threes += 1
+        avg_3 = (sum(marks + [3] * threes) / len(marks + [3] * threes)).__round__(2)
+        await call.message.answer(
+            f'Для *3* нужно:\n`{fives}` *пятерок* ({avg_5}) _или_\n`{fours}` *четверок* ({avg_4}) _или_\n`{threes}` *троек* ({avg_3})',
+            parse_mode=types.ParseMode.MARKDOWN)
+    elif call.data == 'cancel':
+        await state.finish()
+        await call.message.answer('Действие отменено')
+
+
+@dp.message_handler(commands=['gs', 'ds'], state='*', user_id=db.owner_id)
+async def OptionState(message: types.Message, state: FSMContext):
+    state_ = await state.get_state()
+    if state_ is not None:
+        if message.text.lower() == '/gs':
+            await message.answer(hcode(state_), parse_mode=types.ParseMode.HTML)
+        elif message.text.lower() == '/ds':
+            await state.finish()
+            await message.answer(f'{hcode(state_)} удален', parse_mode=types.ParseMode.HTML)
+    else:
+        await message.answer('no state')
+
+
+async def main_message(message: types.Message):
+    await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
+                         reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
+                             KeyboardButton(emojize(
+                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+
+
+@dp.message_handler(commands=['start'], state='*')
 async def start_message(message: types.Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
     await main_message(message)
 
 
-@dp.message_handler(commands=['author'])
+@dp.message_handler(commands=['author'], state='*')
 async def author(message: types.Message):
     await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
                          parse_mode=types.ParseMode.HTML)
 
 
-@dp.message_handler(commands=['docs', 'documents'])
+@dp.message_handler(commands=['docs', 'documents'], state='*')
 async def documents(message: types.Message):
     inline_kb = types.InlineKeyboardMarkup()
     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
@@ -64,7 +156,7 @@ async def documents(message: types.Message):
     await message.answer('Документы', reply_markup=inline_kb)
 
 
-@dp.message_handler(content_types=types.ContentType.TEXT)
+@dp.message_handler(content_types=types.ContentType.TEXT, state='*')
 async def other_messages(message: types.Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
@@ -79,8 +171,9 @@ async def other_messages(message: types.Message):
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
-    elif low.startswith('2') | low.startswith('3') | low.startswith('4') | low.startswith('5'):
-        await average_mark(message)
+    # elif low.startswith('2') | low.startswith('3') | low.startswith('4') | low.startswith('5'):
+    #     await Marks.is_continue.set()
+    #     await average_mark(message)
 
     # *  gdz...
     elif ('алгм' in low) or ('algm' in low):
@@ -160,7 +253,7 @@ async def other_messages(message: types.Message):
             await message.answer('Не найдено заданием с таким номером!')
 
 
-@dp.message_handler(content_types=types.ContentType.ANY)
+@dp.message_handler(content_types=types.ContentType.ANY, state='*')
 async def other_content(message: types.Message):
     if message.from_user.id == db.owner_id:
         await message.answer(message.content_type)
@@ -185,7 +278,7 @@ async def other_content(message: types.Message):
         await message.answer('Я еще не настолько умный')
 
 
-@dp.callback_query_handler()
+@dp.callback_query_handler(state='*')
 async def callback(call: types.CallbackQuery):
     if call.data == 'algm':
         await call.message.answer_document(db.doc_ids['algm'])
