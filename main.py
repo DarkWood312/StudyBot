@@ -1,11 +1,12 @@
 import logging
 
-import aiogram.utils.exceptions
+from aiogram.utils import exceptions
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext, filters
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, Message, \
+    CallbackQuery
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
 
@@ -23,8 +24,89 @@ class Marks(StatesGroup):
     continue_ = State()
 
 
+class SendMessage(StatesGroup):
+    receiver = State()
+    message = State()
+
+
+class IsAdminFilter(filters.BoundFilter):
+    key = 'is_admin'
+
+    def __init__(self, is_admin):
+        self.is_admin = is_admin
+
+    async def check(self, message: Message):
+        admins = sql.get_admins()
+        user = message.from_user.id
+        return user in admins
+
+
+dp.filters_factory.bind(IsAdminFilter)
+
+
+async def main_message(message: Message):
+    await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
+                         reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
+                             KeyboardButton(emojize(
+                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+
+
+async def cancel_state(state: FSMContext):
+    state_ = await state.get_state()
+    if state_ is not None:
+        await state.finish()
+
+
+@dp.message_handler(commands=['msg'], state='*', is_admin=True)
+async def send_msg(message: Message):
+    markup = InlineKeyboardMarkup()
+    users = sql.get_users()
+    markup.row(InlineKeyboardButton('Отправить всем!', callback_data='all'))
+    for user in users:
+        markup.row(InlineKeyboardButton(text=f'{user[0]}, {user[2]}, {user[3]}, {user[4]}', callback_data=f'{user[0]}'))
+    await message.answer('Выбор пользователя для отправки сообщения: ', reply_markup=markup)
+    await SendMessage.receiver.set()
+
+
+@dp.callback_query_handler(state=SendMessage.receiver)
+async def state_SendMessage_receiver(call: CallbackQuery, state: FSMContext):
+    if call.data == 'all':
+        users_id = [user[0] for user in sql.get_users()]
+        await state.update_data(receivers=users_id)
+    else:
+        await state.update_data(receivers=[int(call.data)])
+    await call.message.answer('Сообщение: ')
+    await SendMessage.message.set()
+
+
+@dp.message_handler(state=SendMessage.message, content_types=types.ContentType.ANY)
+async def state_SendMessage_message(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    receivers = data['receivers']
+    for receiver in receivers:
+        username = sql.get_data(receiver, 'username')
+        user_name = sql.get_data(receiver, 'user_name')
+        try:
+            await message.copy_to(receiver)
+            if len(receivers) == 1:
+                await message.answer(
+                    f"""'<code>{message.text}</code>' успешно отправлено <a href="tg://user?id={receiver}">{username if username != 'None' else user_name}</a>""",
+                    parse_mode=types.ParseMode.HTML)
+        except exceptions.BotBlocked:
+            await message.answer('Error. BotBlocked')
+    await message.answer('Закончить монолог?', reply_markup=InlineKeyboardMarkup().row(
+        InlineKeyboardButton('Закончить', callback_data='stop_monolog')))
+
+
+@dp.callback_query_handler(state=SendMessage.message)
+async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMContext):
+    if call.data == 'stop_monolog':
+        await state.finish()
+        await call.message.answer('Готово.')
+
+
 @dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
-async def average_mark(message: types.Message, state: FSMContext, amount_of_digits_after_comma=2,
+async def average_mark(message: Message, state: FSMContext, amount_of_digits_after_comma=2,
                        is_undefined_symbols=True):
     text_of_marks = message.text.replace(' ', '')
     list_of_marks = []
@@ -64,13 +146,13 @@ async def average_mark(message: types.Message, state: FSMContext, amount_of_digi
 
 
 # @dp.message_handler(state=Marks.continue_)
-# async def state_marks_continue_text(message: types.Message, state: FSMContext):
+# async def state_marks_continue_text(message: Message, state: FSMContext):
 #     await state.finish()
 #     await message.answer('Действие отменено')
 
 
 @dp.callback_query_handler(state=Marks.continue_)
-async def state_Marks_continue_(call: types.CallbackQuery, state: FSMContext):
+async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
     fives = 0
     fours = 0
     threes = 0
@@ -114,8 +196,8 @@ async def state_Marks_continue_(call: types.CallbackQuery, state: FSMContext):
         await call.message.answer('Действие отменено')
 
 
-@dp.message_handler(commands=['gs', 'ds'], state='*', user_id=db.owner_id)
-async def OptionState(message: types.Message, state: FSMContext):
+@dp.message_handler(commands=['gs', 'ds'], state='*', is_admin=True)
+async def OptionState(message: Message, state: FSMContext):
     state_ = await state.get_state()
     if state_ is not None:
         if message.text.lower() == '/gs':
@@ -127,29 +209,29 @@ async def OptionState(message: types.Message, state: FSMContext):
         await message.answer('no state')
 
 
-async def main_message(message: types.Message):
-    await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
-                         reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
-                             KeyboardButton(emojize(
-                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
-
-
 @dp.message_handler(commands=['start'], state='*')
-async def start_message(message: types.Message):
+async def start_message(message: Message, state: FSMContext):
+    await cancel_state(state)
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
     await main_message(message)
 
 
+@dp.message_handler(commands=['cancel'], state='*')
+async def cancel(message: types.Message, state: FSMContext):
+    await cancel_state(state)
+    await message.answer('Действие отменено.')
+
+
 @dp.message_handler(commands=['author'], state='*')
-async def author(message: types.Message):
+async def author(message: Message):
     await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
                          parse_mode=types.ParseMode.HTML)
 
 
 @dp.message_handler(commands=['docs', 'documents'], state='*')
-async def documents(message: types.Message):
+async def documents(message: Message):
     inline_kb = types.InlineKeyboardMarkup()
     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
     inline_kb.row(algm_button)
@@ -157,7 +239,7 @@ async def documents(message: types.Message):
 
 
 @dp.message_handler(content_types=types.ContentType.TEXT, state='*')
-async def other_messages(message: types.Message):
+async def other_messages(message: Message):
     sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
     low = message.text.lower()
@@ -224,7 +306,7 @@ async def other_messages(message: types.Message):
             await message.answer('Некорректное число!')
         except ConnectionError:
             await message.answer('Не найдено страницы с таким номером!')
-        except aiogram.utils.exceptions.URLHostIsEmpty:
+        except exceptions.URLHostIsEmpty:
             await message.answer(emojize('На сайте нет этого номера:sad_but_relieved_face:'))
 
     elif ('хим' in low) or ('him' in low):
@@ -254,7 +336,7 @@ async def other_messages(message: types.Message):
 
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*')
-async def other_content(message: types.Message):
+async def other_content(message: Message):
     if message.from_user.id == db.owner_id:
         cp = message.content_type
         await message.answer(cp)
@@ -279,7 +361,7 @@ async def other_content(message: types.Message):
 
 
 @dp.callback_query_handler(state='*')
-async def callback(call: types.CallbackQuery):
+async def callback(call: CallbackQuery):
     if call.data == 'algm':
         await call.message.answer_document(db.doc_ids['algm'])
 

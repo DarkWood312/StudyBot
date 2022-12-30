@@ -46,7 +46,6 @@ class GDZ:
     async def algm_pomogalka(self, paragraph: int, num: int):
         return await process([f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'], self.doc)
 
-
     async def geom_megaresheba(self, num: int):
         r = requests.get(
             f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}',
@@ -74,21 +73,34 @@ class GDZ:
         return await process(imgs, self.doc)
 
     async def kist(self, page: int):
-        match page:
-            case 2 | 3:
-                return db.kist_ids['ist2']
-            case 4 | 5:
-                return db.kist_ids['ist4']
-            case 6 | 7:
-                return db.kist_ids['ist6']
-            case 8 | 9:
-                return db.kist_ids['ist8']
-            case 10 | 11:
-                return db.kist_ids['ist10']
-            case 12 | 13:
-                return db.kist_ids['ist12']
-            case 14 | 15:
-                return db.kist_ids['ist14']
-            case _:
-                pass
-
+        # match page:
+        #     case 2 | 3:
+        #         return db.kist_ids['ist2']
+        #     case 4 | 5:
+        #         return db.kist_ids['ist4']
+        #     case 6 | 7:
+        #         return db.kist_ids['ist6']
+        #     case 8 | 9:
+        #         return db.kist_ids['ist8']
+        #     case 10 | 11:
+        #         return db.kist_ids['ist10']
+        #     case 12 | 13:
+        #         return db.kist_ids['ist12']
+        #     case 14 | 15:
+        #         return db.kist_ids['ist14']
+        #     case _:
+        #         pass
+        if page in [2, 3]:
+            return db.kist_ids['ist2']
+        elif page in [4, 5]:
+            return db.kist_ids['ist4']
+        elif page in [6, 7]:
+            return db.kist_ids['ist6']
+        elif page in [8, 9]:
+            return db.kist_ids['ist8']
+        elif page in [10, 11]:
+            return db.kist_ids['ist10']
+        elif page in [12, 13]:
+            return db.kist_ids['ist12']
+        elif page in [14, 15]:
+            return db.kist_ids['ist14']

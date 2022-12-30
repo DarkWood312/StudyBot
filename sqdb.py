@@ -18,20 +18,32 @@ class Sqdb:
             if_exist = self.cursor.fetchone()
             return if_exist[0]
 
-    def add_user(self, user_id, username, user_name, user_surname, upscaled=False):
+    def add_user(self, user_id, username, user_name, user_surname):
         if not (Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'],
                      environ['SQL_USER']).is_user_exists(user_id)):
             with self.connection:
                 self.cursor.execute(
-                    f"INSERT INTO users (user_id, username, user_name, user_surname, upscaled) VALUES ({user_id}, '{username}', '{user_name}', '{user_surname}', {upscaled})")
+                    f"INSERT INTO users (user_id, username, user_name, user_surname) VALUES ({user_id}, '{username}', '{user_name}', '{user_surname}')")
                 return True
         else:
+            with self.connection:
+                self.cursor.execute(f"UPDATE users set username = '{username}', user_name = '{user_name}', user_surname = '{user_surname}' WHERE user_id = {user_id}")
             return False
 
     def get_data(self, user_id, data):
         with self.connection:
             self.cursor.execute(f'SELECT {data} FROM users WHERE user_id = {user_id}')
             return self.cursor.fetchone()[0]
+
+    def get_admins(self):
+        with self.connection:
+            self.cursor.execute('SELECT user_id FROM users WHERE admin = TRUE')
+            return [i[0] for i in self.cursor.fetchall()]
+
+    def get_users(self):
+        with self.connection:
+            self.cursor.execute('SELECT * FROM users')
+            return self.cursor.fetchall()
 
     # def get_data_table(self, mark_data, mark_name='description', data='file_id', table='docs'):
     #     with self.connection:

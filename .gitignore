@@ -1,4 +1,6 @@
-./.idea
-./__pycache__/
-/.env
-/desktop.ini
+.idea
+__pycache__/
+.env
+desktop.ini
+Dockerfile
+venv
