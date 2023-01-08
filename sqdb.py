@@ -19,16 +19,16 @@ class Sqdb:
             return if_exist[0]
 
     def add_user(self, user_id, username, user_name, user_surname):
-        if not (Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'],
-                     environ['SQL_USER']).is_user_exists(user_id)):
-            with self.connection:
+        with self.connection:
+            self.cursor.execute(f"SELECT COUNT(*) from users WHERE user_id = {user_id}")
+            if_exist = self.cursor.fetchone()[0]
+            if not if_exist:
                 self.cursor.execute(
                     f"INSERT INTO users (user_id, username, user_name, user_surname) VALUES ({user_id}, '{username}', '{user_name}', '{user_surname}')")
                 return True
-        else:
-            with self.connection:
+            else:
                 self.cursor.execute(f"UPDATE users set username = '{username}', user_name = '{user_name}', user_surname = '{user_surname}' WHERE user_id = {user_id}")
-            return False
+                return False
 
     def get_data(self, user_id, data):
         with self.connection:
