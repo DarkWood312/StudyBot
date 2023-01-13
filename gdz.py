@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 from aiogram import types
-
 import db
 from config import sql
 
@@ -21,7 +20,6 @@ async def process(arr, doc: bool = False):
             l = [types.InputMediaDocument(i) for i in arr]
         else:
             l = [types.InputMediaPhoto(i) for i in arr]
-        # return [l[i:i + sep] for i in range(0, len(l), sep)]
     else:
         sep = 4096
         l = arr
@@ -31,7 +29,11 @@ async def process(arr, doc: bool = False):
 class GDZ:
 
     def __init__(self, user_id):
-        self.doc = bool(sql.get_data(user_id, 'upscaled'))
+        self.user_id = user_id
+
+    async def init(self):
+        self.status = bool(await sql.get_data(self.user_id, 'upscaled'))
+        return self.status
 
     async def alg_euroki(self, num: int):
         r = requests.get(
@@ -41,10 +43,10 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
         imgs = [i['src'] for i in imgs_block]
-        return await process(imgs, self.doc)
+        return await process(imgs, await GDZ(self.user_id).init())
 
     async def algm_pomogalka(self, paragraph: int, num: int):
-        return await process([f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'], self.doc)
+        return await process([f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'], await GDZ(self.user_id).init())
 
     async def geom_megaresheba(self, num: int):
         r = requests.get(
@@ -54,7 +56,7 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
-        return await process(imgs, self.doc)
+        return await process(imgs, await GDZ(self.user_id).init())
 
     async def ang_megaresheba(self, page: int):
         r = requests.get(
@@ -64,13 +66,13 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='task', id='task').find_next().find_all('img')
         imgs = [i['src'] for i in imgs_block]
-        return await process(imgs, self.doc)
+        return await process(imgs, await GDZ(self.user_id).init())
 
     async def him_putin(self, tem: int, work: int, var: int):
         r = requests.get(f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}')
         data = r.json()['editions'][0]['images']
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
-        return await process(imgs, self.doc)
+        return await process(imgs, await GDZ(self.user_id).init())
 
     async def kist(self, page: int):
         # match page:

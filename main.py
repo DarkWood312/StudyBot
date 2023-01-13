@@ -36,7 +36,7 @@ class IsAdminFilter(filters.BoundFilter):
         self.is_admin = is_admin
 
     async def check(self, message: Message):
-        admins = sql.get_admins()
+        admins = await sql.get_admins()
         user = message.from_user.id
         return user in admins
 
@@ -45,10 +45,12 @@ dp.filters_factory.bind(IsAdminFilter)
 
 
 async def main_message(message: Message):
+    # data = await sql.get_data(message.from_user.id, "upscaled")
+    # await message.answer(data)
     await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
                          reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
                              KeyboardButton(emojize(
-                                 f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+                                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
 
 async def cancel_state(state: FSMContext):
@@ -60,7 +62,7 @@ async def cancel_state(state: FSMContext):
 @dp.message_handler(commands=['msg'], state='*', is_admin=True)
 async def send_msg(message: Message):
     markup = InlineKeyboardMarkup()
-    users = sql.get_users()
+    users = await sql.get_users()
     markup.row(InlineKeyboardButton('Отправить всем!', callback_data='all'))
     for user in users:
         markup.row(InlineKeyboardButton(text=f'{user[0]}, {user[2]}, {user[3]}, {user[4]}', callback_data=f'{user[0]}'))
@@ -71,7 +73,7 @@ async def send_msg(message: Message):
 @dp.callback_query_handler(state=SendMessage.receiver)
 async def state_SendMessage_receiver(call: CallbackQuery, state: FSMContext):
     if call.data == 'all':
-        users_id = [user[0] for user in sql.get_users()]
+        users_id = [user[0] for user in await sql.get_users()]
         await state.update_data(receivers=users_id)
     else:
         await state.update_data(receivers=[int(call.data)])
@@ -84,8 +86,8 @@ async def state_SendMessage_message(message: types.Message, state: FSMContext):
     data = await state.get_data()
     receivers = data['receivers']
     for receiver in receivers:
-        username = sql.get_data(receiver, 'username')
-        user_name = sql.get_data(receiver, 'user_name')
+        username = await sql.get_data(receiver, 'username')
+        user_name = await sql.get_data(receiver, 'user_name')
         try:
             await message.copy_to(receiver)
             if len(receivers) == 1:
@@ -212,8 +214,8 @@ async def OptionState(message: Message, state: FSMContext):
 @dp.message_handler(commands=['start'], state='*')
 async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
-    sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
-                 message.from_user.last_name)
+    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
+                       message.from_user.last_name)
     await main_message(message)
 
 
@@ -240,18 +242,18 @@ async def documents(message: Message):
 
 @dp.message_handler(content_types=types.ContentType.TEXT, state='*')
 async def other_messages(message: Message):
-    sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
+    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                  message.from_user.last_name)
     low = message.text.lower()
     gdz = GDZ(message.from_user.id)
 
     if 'сжатие' in low:
-        sql.change_data_int(message.from_user.id, 'upscaled',
-                            False if sql.get_data(message.from_user.id, 'upscaled') == True else True)
+        await sql.change_data_int(message.from_user.id, 'upscaled',
+                            False if await sql.get_data(message.from_user.id, 'upscaled') == True else True)
         await message.answer(
-            f'Отправка фотографий с сжатием {"выключена" if sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
+            f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
-                f'Сжатие - {":cross_mark:" if sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+                f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
     # elif low.startswith('2') | low.startswith('3') | low.startswith('4') | low.startswith('5'):
     #     await Marks.is_continue.set()
@@ -266,8 +268,9 @@ async def other_messages(message: Message):
             response = await gdz.algm_pomogalka(paragaph, num)
             for group in response:
                 await message.answer_media_group(group)
-        except ValueError:
+        except ValueError as e:
             await message.answer('Некорректное число!')
+            await message.answer(e)
         except:
             await message.answer('Не найдено заданием с таким номером!')
 
