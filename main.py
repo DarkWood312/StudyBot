@@ -6,10 +6,10 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext, filters
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, Message, \
-    CallbackQuery
+    CallbackQuery, ParseMode
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
-from defs import gdz_sender
+from defs import gdz_sender, cancel_state, main_message
 from gdz import GDZ
 import db
 from config import token, sql
@@ -42,21 +42,6 @@ class IsAdminFilter(filters.BoundFilter):
 
 
 dp.filters_factory.bind(IsAdminFilter)
-
-
-async def main_message(message: Message):
-    # data = await sql.get_data(message.from_user.id, "upscaled")
-    # await message.answer(data)
-    await message.answer(db.gdz_help, parse_mode=types.ParseMode.MARKDOWN,
-                         reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(
-                             KeyboardButton(emojize(
-                                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
-
-
-async def cancel_state(state: FSMContext):
-    state_ = await state.get_state()
-    if state_ is not None:
-        await state.finish()
 
 
 @dp.message_handler(commands=['msg'], state='*', is_admin=True)
@@ -93,7 +78,7 @@ async def state_SendMessage_message(message: types.Message, state: FSMContext):
             if len(receivers) == 1:
                 await message.answer(
                     f"""'<code>{message.text}</code>' успешно отправлено <a href="tg://user?id={receiver}">{username if username != 'None' else user_name}</a>""",
-                    parse_mode=types.ParseMode.HTML)
+                    parse_mode=ParseMode.HTML)
         except exceptions.BotBlocked:
             await message.answer('Error. BotBlocked')
     await message.answer('Закончить монолог?', reply_markup=InlineKeyboardMarkup().row(
@@ -133,21 +118,15 @@ async def average_mark(message: Message, state: FSMContext, amount_of_digits_aft
     if average < 2.6:
         better_mark_markup.add(to_3)
 
-    await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=types.ParseMode.HTML,
+    await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=ParseMode.HTML,
                          reply_markup=better_mark_markup)
     if is_undefined_symbols:
         if len(list_of_undefined_symbols) > 0:
             await message.answer(
                 f'Неизвестные символы, которые не учитывались: <code>{list_of_undefined_symbols}</code>',
-                parse_mode=types.ParseMode.HTML)
+                parse_mode=ParseMode.HTML)
     if average < 4.6:
         await Marks.continue_.set()
-
-
-# @dp.message_handler(state=Marks.continue_)
-# async def state_marks_continue_text(message: Message, state: FSMContext):
-#     await state.finish()
-#     await message.answer('Действие отменено')
 
 
 @dp.callback_query_handler(state=Marks.continue_)
@@ -161,7 +140,7 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
         while sum(marks + [5] * fives) / len(marks + [5] * fives) < 4.6:
             fives += 1
         avg_5 = (sum(marks + [5] * fives) / len(marks + [5] * fives)).__round__(2)
-        await call.message.answer(f'Для *5* нужно:\n`{fives}` *пятерок* ({avg_5})', parse_mode=types.ParseMode.MARKDOWN)
+        await call.message.answer(f'Для *5* нужно:\n`{fives}` *пятерок* ({avg_5})', parse_mode=ParseMode.MARKDOWN)
 
     elif call.data == 'want_4':
         marks = await state.get_data()
@@ -174,7 +153,7 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
         avg_4 = (sum(marks + [4] * fours) / len(marks + [4] * fours)).__round__(2)
         await call.message.answer(
             f'Для *4* нужно:\n`{fives}` *пятерок* ({avg_5}) _или_\n`{fours}` *четверок* ({avg_4})',
-            parse_mode=types.ParseMode.MARKDOWN)
+            parse_mode=ParseMode.MARKDOWN)
     elif call.data == 'want_3':
         marks = await state.get_data()
         marks = marks['marks']
@@ -189,7 +168,7 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
         avg_3 = (sum(marks + [3] * threes) / len(marks + [3] * threes)).__round__(2)
         await call.message.answer(
             f'Для *3* нужно:\n`{fives}` *пятерок* ({avg_5}) _или_\n`{fours}` *четверок* ({avg_4}) _или_\n`{threes}` *троек* ({avg_3})',
-            parse_mode=types.ParseMode.MARKDOWN)
+            parse_mode=ParseMode.MARKDOWN)
     elif call.data == 'cancel':
         await state.finish()
         await call.message.answer('Действие отменено')
@@ -200,10 +179,10 @@ async def OptionState(message: Message, state: FSMContext):
     state_ = await state.get_state()
     if state_ is not None:
         if message.text.lower() == '/gs':
-            await message.answer(hcode(state_), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(state_), parse_mode=ParseMode.HTML)
         elif message.text.lower() == '/ds':
             await state.finish()
-            await message.answer(f'{hcode(state_)} удален', parse_mode=types.ParseMode.HTML)
+            await message.answer(f'{hcode(state_)} удален', parse_mode=ParseMode.HTML)
     else:
         await message.answer('no state')
 
@@ -216,6 +195,12 @@ async def start_message(message: Message, state: FSMContext):
     await main_message(message)
 
 
+@dp.message_handler(filters.Text(startswith='#'), is_admin=True, state='*')
+async def id_search(message: Message, state: FSMContext):
+    await cancel_state(state)
+    await message.answer(f'<a href="tg://user?id={message.text[1::]}">inline mention of a user {message.text[1::]}</a>', parse_mode=ParseMode.HTML)
+
+
 @dp.message_handler(commands=['cancel'], state='*')
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
@@ -226,7 +211,7 @@ async def cancel(message: types.Message, state: FSMContext):
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
-                         parse_mode=types.ParseMode.HTML)
+                         parse_mode=ParseMode.HTML)
 
 
 @dp.message_handler(commands=['docs', 'documents'], state='*')
@@ -253,19 +238,15 @@ async def other_messages(message: Message):
                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
     # *  gdz...
-    # elif ('алгм' in low) or ('algm' in low):             DON'T WORK NEEDS TO UPDATE
-    #     try:
-    #         subject, paragaph, num = low.split(' ', 2)
-    #         paragaph = int(paragaph)
-    #         num = int(num)
-    #         response = await gdz.algm_pomogalka(paragaph, num)
-    #         for group in response:
-    #             group[0]['caption'] = f'Алгебра Мордкович: {num}'
-    #             await message.answer_media_group(group)
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено задания с таким номером!')
+    elif ('алгм' in low) or ('algm' in low):
+        try:
+            subject, paragaph, num = low.split(' ', 2)
+            paragaph = int(paragaph)
+            await gdz_sender(num, gdz.algm_pomogalka, message, 'Алгебра Мордкович', paragaph)
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except:
+            await message.answer('Не найдено задания с таким номером!')
 
     elif ('алг' in low) or ('alg' in low):
         try:
@@ -334,19 +315,19 @@ async def other_content(message: Message):
         cp = message.content_type
         await message.answer(cp)
         if cp == 'sticker':
-            await message.answer(hcode(message.sticker.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
         elif cp == 'photo':
-            await message.answer(hcode(message.photo[0].file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.photo[0].file_id), parse_mode=ParseMode.HTML)
         elif cp == 'audio':
-            await message.answer(hcode(message.audio.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
         elif cp == 'document':
-            await message.answer(hcode(message.document.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.document.file_id), parse_mode=ParseMode.HTML)
         elif cp == 'video':
-            await message.answer(hcode(message.video.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.video.file_id), parse_mode=ParseMode.HTML)
         elif cp == 'video_note':
-            await message.answer(hcode(message.video_note.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.video_note.file_id), parse_mode=ParseMode.HTML)
         elif cp == 'voice':
-            await message.answer(hcode(message.voice.file_id), parse_mode=types.ParseMode.HTML)
+            await message.answer(hcode(message.voice.file_id), parse_mode=ParseMode.HTML)
         else:
             await message.answer('undefined content_type')
     else:
