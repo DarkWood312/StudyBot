@@ -36,62 +36,53 @@ class GDZ:
         return self.status
 
     async def alg_euroki(self, num: int):
-        r = requests.get(
-            f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}',
-            headers=headers)
+        link = f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}'
+        r = requests.get(link, headers=headers)
         if r.status_code != 200:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
         imgs = [i['src'] for i in imgs_block]
-        return await process(imgs, await GDZ(self.user_id).init())
+        return [await process(imgs, await GDZ(self.user_id).init()), link]
 
     async def algm_pomogalka(self, paragraph: int, num: int):
-        return await process([f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'], await GDZ(self.user_id).init())
+        link = f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'
+        return [await process([link], await GDZ(self.user_id).init()), link]
 
     async def geom_megaresheba(self, num: int):
-        r = requests.get(
-            f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}',
-            headers=headers)
+        link = f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}'
+        r = requests.get(link, headers=headers)
         if r.status_code != 200:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
-        return await process(imgs, await GDZ(self.user_id).init())
+        return [await process(imgs, await GDZ(self.user_id).init()), link]
+
+    async def phiz_megaresheba(self, num: int):
+        link = f'https://megaresheba.ru/gdz/fizika/10-klass/kasyanov/{num}-zadacha'
+        r = requests.get(link, headers=headers)
+        if r.status_code != 200:
+            raise ConnectionError
+        imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
+        imgs = [i.find('img')['src'] for i in imgs_block]
+        return [await process(imgs, await GDZ(self.user_id).init()), link]
 
     async def ang_megaresheba(self, page: int):
-        r = requests.get(
-            f'https://megaresheba.ru/publ/reshebnik/anglijskij/10_klass_spotlight_evans/{page}-str',
-            headers=headers)
+        link = f'https://megaresheba.ru/publ/reshebnik/anglijskij/10_klass_spotlight_evans/{page}-str'
+        r = requests.get(link, headers=headers)
         if r.status_code != 200:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='task', id='task').find_next().find_all('img')
         imgs = [i['src'] for i in imgs_block]
-        return await process(imgs, await GDZ(self.user_id).init())
+        return [await process(imgs, await GDZ(self.user_id).init()), link]
 
     async def him_putin(self, tem: int, work: int, var: int):
-        r = requests.get(f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}')
+        link = f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}'
+        r = requests.get(link, headers=headers)
         data = r.json()['editions'][0]['images']
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
-        return await process(imgs, await GDZ(self.user_id).init())
+        return [await process(imgs, await GDZ(self.user_id).init()), link]
 
     async def kist(self, page: int):
-        # match page:
-        #     case 2 | 3:
-        #         return db.kist_ids['ist2']
-        #     case 4 | 5:
-        #         return db.kist_ids['ist4']
-        #     case 6 | 7:
-        #         return db.kist_ids['ist6']
-        #     case 8 | 9:
-        #         return db.kist_ids['ist8']
-        #     case 10 | 11:
-        #         return db.kist_ids['ist10']
-        #     case 12 | 13:
-        #         return db.kist_ids['ist12']
-        #     case 14 | 15:
-        #         return db.kist_ids['ist14']
-        #     case _:
-        #         pass
         if page in [2, 3]:
             return db.kist_ids['ist2']
         elif page in [4, 5]:

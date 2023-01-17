@@ -9,7 +9,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardBut
     CallbackQuery
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
-
+from defs import gdz_sender
 from gdz import GDZ
 import db
 from config import token, sql
@@ -126,15 +126,12 @@ async def average_mark(message: Message, state: FSMContext, amount_of_digits_aft
     to_5 = types.InlineKeyboardButton('Хочу 5', callback_data='want_5')
     to_4 = types.InlineKeyboardButton('Хочу 4', callback_data='want_4')
     to_3 = types.InlineKeyboardButton('Хочу 3', callback_data='want_3')
-    # cancel = types.InlineKeyboardButton('Отмена', callback_data='cancel')
     if average < 4.6:
         better_mark_markup.add(to_5)
     if average < 3.6:
         better_mark_markup.add(to_4)
     if average < 2.6:
         better_mark_markup.add(to_3)
-    # if average < 4.6:
-    #     better_mark_markup.add(cancel)
 
     await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=types.ParseMode.HTML,
                          reply_markup=better_mark_markup)
@@ -255,56 +252,52 @@ async def other_messages(message: Message):
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
-    # elif low.startswith('2') | low.startswith('3') | low.startswith('4') | low.startswith('5'):
-    #     await Marks.is_continue.set()
-    #     await average_mark(message)
-
     # *  gdz...
-    elif ('алгм' in low) or ('algm' in low):
-        try:
-            subject, paragaph, num = low.split(' ', 2)
-            paragaph = int(paragaph)
-            num = int(num)
-            response = await gdz.algm_pomogalka(paragaph, num)
-            for group in response:
-                await message.answer_media_group(group)
-        except ValueError as e:
-            await message.answer('Некорректное число!')
-            await message.answer(e)
-        except:
-            await message.answer('Не найдено заданием с таким номером!')
+    # elif ('алгм' in low) or ('algm' in low):             DON'T WORK NEEDS TO UPDATE
+    #     try:
+    #         subject, paragaph, num = low.split(' ', 2)
+    #         paragaph = int(paragaph)
+    #         num = int(num)
+    #         response = await gdz.algm_pomogalka(paragaph, num)
+    #         for group in response:
+    #             group[0]['caption'] = f'Алгебра Мордкович: {num}'
+    #             await message.answer_media_group(group)
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено задания с таким номером!')
 
     elif ('алг' in low) or ('alg' in low):
         try:
             subject, var = low.split(' ', 1)
-            var = int(var)
-            response = await gdz.alg_euroki(var)
-            for group in response:
-                await message.answer_media_group(group)
+            await gdz_sender(var, gdz.alg_euroki, message, 'Алгебра')
         except ValueError:
             await message.answer('Некорректное число!')
         except:
-            await message.answer('Не найдено заданием с таким номером!')
+            await message.answer('Не найдено задания с таким номером!')
 
     elif ('гео' in low) or ('geo' in low):
         try:
             subject, var = low.split(' ', 1)
-            var = int(var)
-            response = await gdz.geom_megaresheba(var)
-            for group in response:
-                await message.answer_media_group(group)
+            await gdz_sender(var, gdz.geom_megaresheba, message, 'Геометрия')
         except ValueError:
             await message.answer('Некорректное число!')
         except:
-            await message.answer('Не найдено заданием с таким номером!')
+            await message.answer('Не найдено задания с таким номером!')
+
+    elif ('физ' in low) or ('phiz' in low):
+        try:
+            subject, var = low.split(' ', 1)
+            await gdz_sender(var, gdz.phiz_megaresheba, message, 'Физика')
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except:
+            await message.answer('Не найдено задания с таким номером')
 
     elif ('анг' in low) or ('ang' in low):
         try:
             subject, page = low.split(' ', 1)
-            page = int(page)
-            response = await gdz.ang_megaresheba(page)
-            for group in response:
-                await message.answer_media_group(group)
+            await gdz_sender(page, gdz.ang_megaresheba, message, 'Английский')
         except ValueError:
             await message.answer('Некорректное число!')
         except ConnectionError:
@@ -315,12 +308,9 @@ async def other_messages(message: Message):
     elif ('хим' in low) or ('him' in low):
         try:
             subject, tem, work, var = low.split(' ', 3)
-            var = int(var)
             tem = int(tem)
             work = int(work)
-            response = await gdz.him_putin(tem, work, var)
-            for group in response:
-                await message.answer_media_group(group)
+            await gdz_sender(var, gdz.him_putin, message, 'Химия', tem, work)
         except ValueError:
             await message.answer('Некорректное число!')
         except:
