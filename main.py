@@ -9,6 +9,11 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardBut
     CallbackQuery, ParseMode
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
+from netschoolapi.errors import AuthError
+
+from keyboards import cancel_markup
+from netschool import NetSchool
+
 from defs import gdz_sender, cancel_state, main_message
 from gdz import GDZ
 import db
@@ -23,6 +28,10 @@ class Marks(StatesGroup):
     is_continue = State()
     continue_ = State()
 
+
+class NetSchoolState(StatesGroup):
+    login = State()
+    password = State()
 
 class SendMessage(StatesGroup):
     receiver = State()
@@ -90,6 +99,69 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
     if call.data == 'stop_monolog':
         await state.finish()
         await call.message.answer('Готово.')
+
+@dp.message_handler(commands=['cancel'], state='*')
+async def cancel(message: types.Message, state: FSMContext):
+    await cancel_state(state)
+    await message.answer('Действие отменено.')
+
+@dp.message_handler(commands=['login'], state='*')
+async def login(message: Message, state: FSMContext):
+    await cancel_state(state)
+    current_logpass = await sql.get_logpass(message.from_user.id)
+    if not current_logpass is None:
+        await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
+    await message.answer('Введите логин от <a href="https://sgo.rso23.ru/">Сетевого города</a>: ', parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
+    await NetSchoolState.login.set()
+
+
+@dp.message_handler(state=NetSchoolState.login)
+async def state_NetSchool_login(message: Message, state: FSMContext):
+    log = message.text
+    await state.update_data(log=log)
+    await message.answer('Введите пароль: ')
+    await NetSchoolState.password.set()
+
+
+@dp.message_handler(state=NetSchoolState.password)
+async def state_NetSchool_password(message: Message, state: FSMContext):
+    pass_ = message.text
+    log = (await state.get_data())['log']
+
+    try:
+        ns = await NetSchool(log, pass_)
+        await ns.logout()
+        await sql.change_data(message.from_user.id, 'netschool', f'{log}:::{pass_}')
+        await message.answer('Успешно!')
+        await cancel_state(state)
+    except AuthError:
+        await message.answer('Логин или пароль неверный!')
+        await cancel_state(state)
+        await login(message, state)
+
+
+
+@dp.message_handler(commands=['mymarks'], state='*')
+async def mark_report(message: Message, state: FSMContext):
+    await cancel_state(state)
+    logpass = await sql.get_logpass(message.from_user.id)
+    if logpass is None:
+        await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !', parse_mode=ParseMode.HTML)
+        return
+    ns = await NetSchool(login=logpass['login'], password=logpass['password'])
+    all_marks = await ns.get_marks()
+    subjects = list(all_marks.keys())
+    markup = InlineKeyboardMarkup()
+    for subject in subjects:
+        marks = all_marks[subject]
+        string_marks = ''.join([str(m) for m in all_marks[subject]])
+        avg = (sum(marks) / len(marks)).__round__(2)
+        markup.add(InlineKeyboardButton(f'{subject} - {avg}', callback_data=string_marks))
+
+    await message.answer('Оценки: ', reply_markup=markup)
+
+
+
 
 
 @dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
@@ -170,8 +242,11 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
             f'Для *3* нужно:\n`{fives}` *пятерок* ({avg_5}) _или_\n`{fours}` *четверок* ({avg_4}) _или_\n`{threes}` *троек* ({avg_3})',
             parse_mode=ParseMode.MARKDOWN)
     elif call.data == 'cancel':
-        await state.finish()
+        await cancel_state(state)
         await call.message.answer('Действие отменено')
+    else:
+        await cancel_state(state)
+        await callback(call, state)
 
 
 @dp.message_handler(commands=['gs', 'ds'], state='*', is_admin=True)
@@ -195,21 +270,9 @@ async def start_message(message: Message, state: FSMContext):
     await main_message(message)
 
 
-@dp.message_handler(filters.Text(startswith='#'), is_admin=True, state='*')
-async def id_search(message: Message, state: FSMContext):
-    await cancel_state(state)
-    await message.answer(f'<a href="tg://user?id={message.text[1::]}">inline mention of a user {message.text[1::]}</a>', parse_mode=ParseMode.HTML)
-
-
-@dp.message_handler(commands=['cancel'], state='*')
-async def cancel(message: types.Message, state: FSMContext):
-    await cancel_state(state)
-    await message.answer('Действие отменено.')
-
-
 @dp.message_handler(commands=['author'], state='*')
 async def author(message: Message):
-    await message.answer(f'Папа: {hlink("Алекса", "https://t.me/DWiPok")}'
+    await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
                          parse_mode=ParseMode.HTML)
 
@@ -335,9 +398,16 @@ async def other_content(message: Message):
 
 
 @dp.callback_query_handler(state='*')
-async def callback(call: CallbackQuery):
-    if call.data == 'algm':
+async def callback(call: CallbackQuery, state: FSMContext):
+    if call.data == 'cancel':
+        await cancel_state(state)
+        await call.message.answer('Действие отменено.')
+    elif call.data == 'algm':
         await call.message.answer_document(db.doc_ids['algm'])
+    elif call.data.startswith(tuple(['2', '3', '4', '5'])):
+        call.message.text = call.data
+        # await call.message.answer(call.message.text)
+        await average_mark(message=call.message, state=state)
 
 
 if __name__ == '__main__':

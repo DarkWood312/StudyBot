@@ -35,6 +35,16 @@ class Sqdb:
             self.cursor.execute(f'SELECT {data} FROM users WHERE user_id = {user_id}')
             return self.cursor.fetchone()[0]
 
+    async def get_logpass(self, user_id) -> dict | None:
+        with self.connection:
+            self.cursor.execute(f'SELECT netschool FROM users WHERE user_id = {user_id}')
+            data = self.cursor.fetchone()[0]
+            if data is None:
+                return None
+            k, v = data.split(':::')
+            return {'login': k, 'password': v}
+
+
     async def get_admins(self):
         with self.connection:
             self.cursor.execute('SELECT user_id FROM users WHERE admin = TRUE')
@@ -49,6 +59,10 @@ class Sqdb:
     #     with self.connection:
     #         self.cursor.execute(f"SELECT {data} FROM {table} WHERE {mark_name} = '{mark_data}'")
     #         return self.cursor.fetchone()[0]
+
+    async def change_data(self, user_id, name, data):
+        with self.connection:
+            self.cursor.execute(f"UPDATE users set {name} = '{data}' WHERE user_id = {user_id}")
 
     async def change_data_int(self, user_id, name, data):
         with self.connection:
