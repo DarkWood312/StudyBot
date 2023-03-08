@@ -50,7 +50,8 @@ class NetSchool(AsyncClass):
                             old_data = dict_[lesson.subject]
                         else:
                             old_data = []
-                        old_data.append(marks[0])
+                        for m in marks:
+                            old_data.append(m)
                         dict_[lesson.subject] = old_data
 
         await self.ns.logout()
