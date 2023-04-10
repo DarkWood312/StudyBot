@@ -360,6 +360,18 @@ async def other_messages(message: Message):
         except:
             await message.answer('Не найдено заданием с таким номером!')
 
+    elif ('инф' in low) or ('inf' in low):
+        try:
+            subject, task, num = low.split(' ', 2)
+            num = str(int(num))
+            response_text = await gdz.inf_kpolyakova(task, num)
+            await message.answer(response_text[0], parse_mode=ParseMode.HTML)
+        except ValueError:
+            await message.answer('Некорректное число!')
+        except:
+            await message.answer('Не найдено заданием с таким номером!')
+
+
     elif ('кист' in low) or ('kist' in low):
         try:
             subject, page = low.split(' ', 1)
@@ -370,6 +382,7 @@ async def other_messages(message: Message):
             await message.answer('Некорректное число!')
         except:
             await message.answer('Не найдено заданием с таким номером!')
+
 
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*')

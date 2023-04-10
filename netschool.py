@@ -14,6 +14,7 @@ class NetSchool(AsyncClass):
         await self.ns.login(self.login, self.password, self.school_id)
 
         self.start_date = date(2023, 1, 9)
+        self.end_date = date.today()
 
     async def get_ns(self):
         return self.ns

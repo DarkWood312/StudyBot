@@ -82,6 +82,13 @@ class GDZ:
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
         return [await process(imgs, await GDZ(self.user_id).init()), link]
 
+    async def inf_kpolyakova(self, task: str, num: str | int):
+        answer = db.kpolyakova_answers[num][task].replace('\n', '')
+        if 'https' in answer:
+            n, link = answer.split('https://', 1)
+            answer = f"<a href='https://{link}'>{n}</a>"
+        return await process(answer, await GDZ(self.user_id).init())
+
     async def kist(self, page: int):
         if page in [2, 3]:
             return db.kist_ids['ist2']

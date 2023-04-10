@@ -4,3 +4,4 @@ __pycache__/
 desktop.ini
 Dockerfile
 venv
+netschool.py
