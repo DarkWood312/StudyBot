@@ -363,9 +363,7 @@ async def other_messages(message: Message):
     elif ('инф' in low) or ('inf' in low):
         try:
             subject, task, num = low.split(' ', 2)
-            num = str(int(num))
-            response_text = await gdz.inf_kpolyakova(task, num)
-            await message.answer(response_text[0], parse_mode=ParseMode.HTML)
+            await gdz_sender(num, gdz.inf_kpolyakova, message, 'Информатика Полякова', task)
         except ValueError:
             await message.answer('Некорректное число!')
         except:

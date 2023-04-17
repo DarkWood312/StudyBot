@@ -83,11 +83,13 @@ class GDZ:
         return [await process(imgs, await GDZ(self.user_id).init()), link]
 
     async def inf_kpolyakova(self, task: str, num: str | int):
-        answer = db.kpolyakova_answers[num][task].replace('\n', '')
-        if 'https' in answer:
-            n, link = answer.split('https://', 1)
-            answer = f"<a href='https://{link}'>{n}</a>"
-        return await process(answer, await GDZ(self.user_id).init())
+        res = db.kpolyakova_answers[num][task].replace('\n', '')
+        answer = f"<b>Ответ:</b> <code>{res}</code>"
+        if 'https' in res:
+            n, adr = res.split('https://', 1)
+            link = f'https://{adr}'
+            answer = f"<b>Ответ:</b> <a href='{link}'>{n}</a>"
+        return [await process(answer, await GDZ(self.user_id).init()), None]
 
     async def kist(self, page: int):
         if page in [2, 3]:
