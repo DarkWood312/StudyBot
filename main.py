@@ -314,7 +314,7 @@ async def other_messages(message: Message):
     elif ('алг' in low) or ('alg' in low):
         try:
             subject, var = low.split(' ', 1)
-            await gdz_sender(var, gdz.alg_euroki, message, 'Алгебра')
+            await gdz_sender(var, gdz.alg_megaresheba, message, 'Алгебра')
         except ValueError:
             await message.answer('Некорректное число!')
         except:

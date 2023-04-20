@@ -13,17 +13,19 @@ headers = {
 }
 
 
-async def process(arr, doc: bool = False):
-    if isinstance(arr, list):
-        sep = 10
-        if doc:
-            l = [types.InputMediaDocument(i) for i in arr]
-        else:
-            l = [types.InputMediaPhoto(i) for i in arr]
-    else:
-        sep = 4096
-        l = arr
-    return [l[i:i + sep] for i in range(0, len(l), sep)]
+# async def process(arr, doc: bool = None):
+#     if isinstance(arr, list):
+#         if doc is None:
+#             doc = sql.
+#         sep = 10
+#         if doc:
+#             l = [types.InputMediaDocument(i) for i in arr]
+#         else:
+#             l = [types.InputMediaPhoto(i) for i in arr]
+#     else:
+#         sep = 4096
+#         l = arr
+#     return [l[i:i + sep] for i in range(0, len(l), sep)]
 
 
 class GDZ:
@@ -35,18 +37,41 @@ class GDZ:
         self.status = bool(await sql.get_data(self.user_id, 'upscaled'))
         return self.status
 
-    async def alg_euroki(self, num: int):
-        link = f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}'
+    async def process(self, arr, doc: bool = None):
+        if isinstance(arr, list):
+            if doc is None:
+                doc = await self.init()
+            sep = 10
+            if doc:
+                l = [types.InputMediaDocument(i) for i in arr]
+            else:
+                l = [types.InputMediaPhoto(i) for i in arr]
+        else:
+            sep = 4096
+            l = arr
+        return [l[i:i + sep] for i in range(0, len(l), sep)]
+
+    # async def alg_euroki(self, num: int):
+    #     link = f'https://www.euroki.org/gdz/ru/algebra/10_klass/reshebnik-po-algebre-10-klasss-alimov-502/zadanie-{num}'
+    #     r = requests.get(link, headers=headers)
+    #     if r.status_code != 200:
+    #         raise ConnectionError
+    #     imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
+    #     imgs = [i['src'] for i in imgs_block]
+    #     return [await self.process(imgs), link]
+
+    async def alg_megaresheba(self, num: int):
+        link = f'https://megaresheba.ru/publ/reshebnik/algebra/10_11_klass_alimov/34-1-0-1964/{num}-nomer'
         r = requests.get(link, headers=headers)
         if r.status_code != 200:
             raise ConnectionError
-        imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='gdz_image')
-        imgs = [i['src'] for i in imgs_block]
-        return [await process(imgs, await GDZ(self.user_id).init()), link]
+        imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
+        imgs = [i.find('img')['src'] for i in imgs_block]
+        return [await self.process(imgs), link]
 
     async def algm_pomogalka(self, paragraph: int, num: int):
         link = f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'
-        return [await process([link], await GDZ(self.user_id).init()), link]
+        return [await self.process([link]), link]
 
     async def geom_megaresheba(self, num: int):
         link = f'https://megaresheba.ru/publ/reshebnik/geometrija/10_11_klass_atanasjan/32-1-0-1117/class-10-{num}'
@@ -55,7 +80,7 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
-        return [await process(imgs, await GDZ(self.user_id).init()), link]
+        return [await self.process(imgs), link]
 
     async def phiz_megaresheba(self, num: int):
         link = f'https://megaresheba.ru/gdz/fizika/10-klass/kasyanov/{num}-zadacha'
@@ -64,7 +89,7 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find_all(class_='with-overtask')
         imgs = [i.find('img')['src'] for i in imgs_block]
-        return [await process(imgs, await GDZ(self.user_id).init()), link]
+        return [await self.process(imgs), link]
 
     async def ang_megaresheba(self, page: int):
         link = f'https://megaresheba.ru/publ/reshebnik/anglijskij/10_klass_spotlight_evans/{page}-str'
@@ -73,14 +98,14 @@ class GDZ:
             raise ConnectionError
         imgs_block = BeautifulSoup(r.content, 'lxml').find(class_='task', id='task').find_next().find_all('img')
         imgs = [i['src'] for i in imgs_block]
-        return [await process(imgs, await GDZ(self.user_id).init()), link]
+        return [await self.process(imgs), link]
 
     async def him_putin(self, tem: int, work: int, var: int):
         link = f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}'
         r = requests.get(link, headers=headers)
         data = r.json()['editions'][0]['images']
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
-        return [await process(imgs, await GDZ(self.user_id).init()), link]
+        return [await self.process(imgs), link]
 
     async def inf_kpolyakova(self, task: str, num: str | int):
         res = db.kpolyakova_answers[num][task].replace('\n', '')
@@ -89,7 +114,7 @@ class GDZ:
             n, adr = res.split('https://', 1)
             link = f'https://{adr}'
             answer = f"<b>Ответ:</b> <a href='{link}'>{n}</a>"
-        return [await process(answer, await GDZ(self.user_id).init()), None]
+        return [await self.process(answer), None]
 
     async def kist(self, page: int):
         if page in [2, 3]:
