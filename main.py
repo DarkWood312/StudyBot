@@ -273,7 +273,7 @@ async def start_message(message: Message, state: FSMContext):
 @dp.message_handler(commands=['author'], state='*')
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
-                         f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/gdz_bot_for_10b")}',
+                         f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/StudyBot")}',
                          parse_mode=ParseMode.HTML)
 
 

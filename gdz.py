@@ -131,3 +131,28 @@ class GDZ:
             return db.kist_ids['ist12']
         elif page in [14, 15]:
             return db.kist_ids['ist14']
+
+
+class ModernGDZ:
+    def __init__(self, user_id):
+        self.status = None
+        self.user_id = user_id
+
+    async def init(self):
+        self.status = bool(await sql.get_data(self.user_id, 'upscaled'))
+        return self.status
+
+    async def process(self, arr, doc: bool = None):
+        if not isinstance(arr, list):
+            sep = 4096
+            l = arr
+        else:
+            if doc is None:
+                doc = await self.init()
+            sep = 10
+            if doc:
+                l = [types.InputMediaDocument(i) for i in arr]
+            else:
+                l = [types.InputMediaPhoto(i) for i in arr]
+        return [l[i:i + sep] for i in range(0, len(l), sep)]
+
