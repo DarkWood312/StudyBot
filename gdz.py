@@ -156,3 +156,17 @@ class ModernGDZ:
                 l = [types.InputMediaPhoto(i) for i in arr]
         return [l[i:i + sep] for i in range(0, len(l), sep)]
 
+    class GdzPutinaFun:
+        def get_subjects() -> dict:
+            main_url = 'https://gdz-putina.fun'
+            grades_dict = {}
+
+            r = requests.get(main_url)
+            grades = BeautifulSoup(r.content, 'lxml').find(class_='siteMenu').find_all(class_='classesSelect')
+
+            for grade in grades:
+                grades_dict[grade.find('div').find('a').get('href')[1:]] = [
+                    {subject.find('a').getText().strip(): url + subject.find('a').get('href')} for subject in
+                    grade.find('ul').find_all('li')]
+
+            return grades_dict
