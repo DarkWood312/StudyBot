@@ -69,7 +69,7 @@ class GDZ:
         imgs = [i.find('img')['src'] for i in imgs_block]
         return [await self.process(imgs), link]
 
-    async def algm_pomogalka(self, paragraph: int, num: int):
+    async def algm_pomogalka(self, paragraph: int, num: int):   #deprecated
         link = f'https://pomogalka.me/img/10-11-klass-mordkovich/{paragraph}-{num}.png'
         return [await self.process([link]), link]
 
@@ -82,7 +82,7 @@ class GDZ:
         imgs = [i.find('img')['src'] for i in imgs_block]
         return [await self.process(imgs), link]
 
-    async def phiz_megaresheba(self, num: int):
+    async def phiz_megaresheba(self, num: int):     #deprecated
         link = f'https://megaresheba.ru/gdz/fizika/10-klass/kasyanov/{num}-zadacha'
         r = requests.get(link, headers=headers)
         if r.status_code != 200:
@@ -92,7 +92,7 @@ class GDZ:
         return [await self.process(imgs), link]
 
     async def ang_megaresheba(self, page: int):
-        link = f'https://megaresheba.ru/publ/reshebnik/anglijskij/10_klass_spotlight_evans/{page}-str'
+        link = f'https://megaresheba.ru/publ/reshebnik/anglijskij/11_klass_spotlight_evans/{page}-str'
         r = requests.get(link, headers=headers)
         if r.status_code != 200:
             raise ConnectionError
@@ -100,14 +100,14 @@ class GDZ:
         imgs = [i['src'] for i in imgs_block]
         return [await self.process(imgs), link]
 
-    async def him_putin(self, tem: int, work: int, var: int):
+    async def him_putin(self, tem: int, work: int, var: int):     #deprecated
         link = f'https://gdz-putina.fun/json/klass-10/himiya/radeckij/{tem}-{work}-tem-{var}'
         r = requests.get(link, headers=headers)
         data = r.json()['editions'][0]['images']
         imgs = ['https://gdz-putina.fun' + i['url'] for i in data]
         return [await self.process(imgs), link]
 
-    async def inf_kpolyakova(self, task: str, num: str | int):
+    async def inf_kpolyakova(self, task: str, num: str | int):     #deprecated
         res = db.kpolyakova_answers[num][task].replace('\n', '')
         answer = f"<b>Ответ:</b> <code>{res}</code>"
         if 'https' in res:
@@ -116,7 +116,7 @@ class GDZ:
             answer = f"<b>Ответ:</b> <a href='{link}'>{n}</a>"
         return [await self.process(answer), None]
 
-    async def kist(self, page: int):
+    async def kist(self, page: int):     #deprecated
         if page in [2, 3]:
             return db.kist_ids['ist2']
         elif page in [4, 5]:
