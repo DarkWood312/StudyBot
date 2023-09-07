@@ -1,3 +1,4 @@
+import json
 import logging
 
 from aiogram.utils import exceptions
@@ -6,7 +7,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext, filters
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, Message, \
-    CallbackQuery, ParseMode
+    CallbackQuery, ParseMode, InputMediaPhoto
 from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
 from netschoolapi.errors import AuthError
@@ -16,6 +17,7 @@ from netschool import NetSchool
 
 from defs import gdz_sender, cancel_state, main_message
 from gdz import GDZ
+from modern_gdz import ModernGDZ
 import db
 from config import token, sql
 
@@ -33,9 +35,18 @@ class NetSchoolState(StatesGroup):
     login = State()
     password = State()
 
+
 class SendMessage(StatesGroup):
     receiver = State()
     message = State()
+
+
+class Bind(StatesGroup):
+    picked_source = State()
+    picked_grade = State()
+    picked_subject = State()
+    picked_book = State()
+    picked_alias = State()
 
 
 class IsAdminFilter(filters.BoundFilter):
@@ -100,53 +111,73 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
         await state.finish()
         await call.message.answer('Готово.')
 
+
 @dp.message_handler(commands=['cancel'], state='*')
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
     await message.answer('Действие отменено.')
 
-@dp.message_handler(commands=['login'], state='*')
-async def login(message: Message, state: FSMContext):
+
+# @dp.message_handler(commands=['login'], state='*')
+# async def login(message: Message, state: FSMContext):
+#     await cancel_state(state)
+#     current_logpass = await sql.get_logpass(message.from_user.id)
+#     if not current_logpass is None:
+#         await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
+#     await message.answer('Введите логин от <a href="https://sgo.rso23.ru/">Сетевого города</a>: ', parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
+#     await NetSchoolState.login.set()
+#
+#
+# @dp.message_handler(state=NetSchoolState.login)
+# async def state_NetSchool_login(message: Message, state: FSMContext):
+#     log = message.text
+#     await state.update_data(log=log)
+#     await message.answer('Введите пароль: ')
+#     await NetSchoolState.password.set()
+#
+#
+# @dp.message_handler(state=NetSchoolState.password)
+# async def state_NetSchool_password(message: Message, state: FSMContext):
+#     pass_ = message.text
+#     log = (await state.get_data())['log']
+#
+#     try:
+#         ns = await NetSchool(log, pass_)
+#         await ns.logout()
+#         await sql.change_data(message.from_user.id, 'netschool', f'{log}:::{pass_}')
+#         await message.answer('Успешно!')
+#         await cancel_state(state)
+#     except AuthError:
+#         await message.answer('Логин или пароль неверный!')
+#         await cancel_state(state)
+#         await login(message, state)
+
+@dp.message_handler(state=Bind.picked_alias)
+async def state_picked_alias(message: Message, state: FSMContext):
+    await state.update_data({'alias': message.text.split(' ')[0]})
+    state_data = await state.get_data()
+    alias = state_data['alias']
+
+    old_data = await sql.get_data(message.from_user.id, 'aliases')
+    old_data[alias] = state_data['book_url']
+
+    new_data = json.dumps(old_data)
+
+    await sql.change_data_jsonb(message.from_user.id, 'aliases', new_data)
+
+    for msg in state_data['msgs_to_delete']:
+        await bot.delete_message(message.chat.id, msg)
+    await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
+
     await cancel_state(state)
-    current_logpass = await sql.get_logpass(message.from_user.id)
-    if not current_logpass is None:
-        await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
-    await message.answer('Введите логин от <a href="https://sgo.rso23.ru/">Сетевого города</a>: ', parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
-    await NetSchoolState.login.set()
-
-
-@dp.message_handler(state=NetSchoolState.login)
-async def state_NetSchool_login(message: Message, state: FSMContext):
-    log = message.text
-    await state.update_data(log=log)
-    await message.answer('Введите пароль: ')
-    await NetSchoolState.password.set()
-
-
-@dp.message_handler(state=NetSchoolState.password)
-async def state_NetSchool_password(message: Message, state: FSMContext):
-    pass_ = message.text
-    log = (await state.get_data())['log']
-
-    try:
-        ns = await NetSchool(log, pass_)
-        await ns.logout()
-        await sql.change_data(message.from_user.id, 'netschool', f'{log}:::{pass_}')
-        await message.answer('Успешно!')
-        await cancel_state(state)
-    except AuthError:
-        await message.answer('Логин или пароль неверный!')
-        await cancel_state(state)
-        await login(message, state)
-
-
 
 @dp.message_handler(commands=['mymarks'], state='*')
 async def mark_report(message: Message, state: FSMContext):
     await cancel_state(state)
     logpass = await sql.get_logpass(message.from_user.id)
     if logpass is None:
-        await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !', parse_mode=ParseMode.HTML)
+        await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
+                             parse_mode=ParseMode.HTML)
         return
     ns = await NetSchool(login=logpass['login'], password=logpass['password'])
     all_marks = await ns.get_marks()
@@ -159,9 +190,6 @@ async def mark_report(message: Message, state: FSMContext):
         markup.add(InlineKeyboardButton(f'{subject} - {avg}', callback_data=string_marks))
 
     await message.answer('Оценки: ', reply_markup=markup)
-
-
-
 
 
 @dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
@@ -270,6 +298,107 @@ async def start_message(message: Message, state: FSMContext):
     await main_message(message)
 
 
+@dp.message_handler(commands=['bind'], state='*')
+async def bind(message: Message, state: FSMContext):
+    await cancel_state(state)
+
+    source_markup = InlineKeyboardMarkup()
+    for gdz_source in db.available_gdzs.values():
+        source_markup.row(InlineKeyboardButton(gdz_source, callback_data=gdz_source))
+    source_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+
+    await message.answer('Выберите источник ГДЗ:', reply_markup=source_markup)
+
+    await Bind.picked_source.set()
+
+
+@dp.callback_query_handler(state=Bind.picked_source)
+async def state_picked_source(call: CallbackQuery, state: FSMContext):
+    if call.data == 'cancel':
+        await cancel_state(state)
+        await call.message.delete()
+
+    await state.update_data({'source': call.data})
+
+    grade_markup = InlineKeyboardMarkup()
+    for grade in range(1, 12):
+        grade = str(grade)
+        grade_markup.add(InlineKeyboardButton(grade, callback_data=grade))
+    grade_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+
+    await call.message.edit_text('Выберите класс: ')
+    await call.message.edit_reply_markup(reply_markup=grade_markup)
+
+    await Bind.picked_grade.set()
+
+
+@dp.callback_query_handler(state=Bind.picked_grade)
+async def state_picked_grade(call: CallbackQuery, state: FSMContext):
+    if call.data == 'cancel':
+        await cancel_state(state)
+        await call.message.delete()
+
+    await state.update_data({'grade': call.data})
+
+    subjects_markup = InlineKeyboardMarkup()
+    subjects = (await (ModernGDZ(call.from_user.id).GdzPutinaFun()).get_subjects())[f'klass-{call.data}'].keys()
+    for subject in subjects:
+        subjects_markup.add(InlineKeyboardButton(subject, callback_data=subject))
+    subjects_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+
+    msg = await call.message.edit_text('Выберите предмет: ')
+    await call.message.edit_reply_markup(reply_markup=subjects_markup)
+
+    await state.update_data({'msgs_to_delete': [msg.message_id]})
+
+    await Bind.picked_subject.set()
+
+
+@dp.callback_query_handler(state=Bind.picked_subject)
+async def state_picked_subject(call: CallbackQuery, state: FSMContext):
+    if call.data == 'cancel':
+        await cancel_state(state)
+        await call.message.delete()
+    state_data = await state.get_data()
+    await state.update_data({'subject': call.data})
+
+    mgdz = ModernGDZ(call.from_user.id)
+    sgdz = None
+    if state_data['source'] == db.available_gdzs['gdz_putina']:
+        sgdz = mgdz.GdzPutinaFun()
+    subject_url = await sgdz.get_subject_url(state_data['grade'], call.data)
+    books_data = await sgdz.get_books(subject_url)
+    await state.update_data({'books_data': books_data})
+
+    msgs_to_delete = state_data['msgs_to_delete']
+
+    for i in range(0, len(books_data)):
+        try:
+            bmarkup = InlineKeyboardMarkup().add(InlineKeyboardButton('Выбрать', callback_data=str(i)))
+            msg = await call.message.answer_photo(books_data[i]["img_url"], caption=f'<b>{i+1}</b>. <a href="{books_data[i]["book_url"]}">{books_data[i]["img_title"]}</a>\n<code>{books_data[i]["author"]}</code>', parse_mode=ParseMode.HTML, reply_markup=bmarkup, disable_notification=True)
+            msgs_to_delete.append(msg.message_id)
+        except:
+            print(books_data[i])
+    await state.update_data({'msgs_to_delete': msgs_to_delete})
+    await Bind.picked_book.set()
+
+
+@dp.callback_query_handler(state=Bind.picked_book)
+async def state_picked_book(call: CallbackQuery, state: FSMContext):
+    state_data = await state.get_data()
+    await state.update_data({'book_url': state_data['books_data'][int(call.data)]['book_url']})
+
+    msg = await call.message.answer('Введите alias для этого предмета:\nНапример: <code>алг</code> (пример поиска номера: <i>алг 135</i>). <i>алг</i> - это '
+                              'alias для вашего предмета, <i>135</i> это номер задания и тп. ',
+                              parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
+
+    msgs_to_delete = state_data['msgs_to_delete']
+    msgs_to_delete.append(msg.message_id)
+    await state.update_data({'msgs_to_delete': msgs_to_delete})
+
+    await Bind.picked_alias.set()
+
+
 @dp.message_handler(commands=['author'], state='*')
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
@@ -288,13 +417,13 @@ async def documents(message: Message):
 @dp.message_handler(content_types=types.ContentType.TEXT, state='*')
 async def other_messages(message: Message):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
-                 message.from_user.last_name)
+                       message.from_user.last_name)
     low = message.text.lower()
     gdz = GDZ(message.from_user.id)
 
     if 'сжатие' in low:
-        await sql.change_data_int(message.from_user.id, 'upscaled',
-                            False if await sql.get_data(message.from_user.id, 'upscaled') == True else True)
+        await sql.change_data_type(message.from_user.id, 'upscaled',
+                                   False if await sql.get_data(message.from_user.id, 'upscaled') == True else True)
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
@@ -380,7 +509,6 @@ async def other_messages(message: Message):
             await message.answer('Некорректное число!')
         except:
             await message.answer('Не найдено заданием с таким номером!')
-
 
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*')
