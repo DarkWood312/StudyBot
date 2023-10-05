@@ -68,4 +68,4 @@ class Sqdb:
 
     async def change_data_jsonb(self, user_id, name, data):
         with self.connection:
-            self.cursor.execute(f'UPDATE users set {name} = %s WHERE user_id = {user_id}', [data])
+            self.cursor.execute(f'UPDATE users set {name} = %s::jsonb[] WHERE user_id = {user_id}', data)

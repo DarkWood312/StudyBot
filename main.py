@@ -1,5 +1,6 @@
 import json
 import logging
+from random import shuffle
 
 from aiogram.utils import exceptions
 from aiogram import Bot, Dispatcher, executor, types
@@ -12,10 +13,10 @@ from emoji.core import emojize
 from aiogram.utils.markdown import hbold, hcode, hlink
 from netschoolapi.errors import AuthError
 
-from keyboards import cancel_markup
+from keyboards import cancel_markup, reply_cancel_markup, menu_markup
 from netschool import NetSchool
 
-from defs import gdz_sender, cancel_state, main_message
+from defs import modern_gdz_sender, cancel_state, main_message
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -47,6 +48,10 @@ class Bind(StatesGroup):
     picked_subject = State()
     picked_book = State()
     picked_alias = State()
+
+
+class Orthoepy(StatesGroup):
+    main = State()
 
 
 class IsAdminFilter(filters.BoundFilter):
@@ -153,13 +158,13 @@ async def cancel(message: types.Message, state: FSMContext):
 #         await login(message, state)
 
 @dp.message_handler(state=Bind.picked_alias)
-async def state_picked_alias(message: Message, state: FSMContext):
-    await state.update_data({'alias': message.text.split(' ')[0]})
+async def state_Bind_picked_alias(message: Message, state: FSMContext):
+    await state.update_data({'alias': message.text.split(' ')[0].lower()})
     state_data = await state.get_data()
     alias = state_data['alias']
 
     old_data = await sql.get_data(message.from_user.id, 'aliases')
-    old_data[alias] = state_data['book_url']
+    old_data[alias] = state_data['book_url']  # ! TODO TypeError: 'NoneType' object does not support item assignment
 
     new_data = json.dumps(old_data)
 
@@ -170,6 +175,50 @@ async def state_picked_alias(message: Message, state: FSMContext):
     await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
 
     await cancel_state(state)
+
+
+@dp.message_handler(state=Orthoepy.main)
+async def state_Orthoepy_main(message: Message, state: FSMContext):
+    if not message.text.isdigit() and 'Закончить' not in message.text:
+        await message.answer('Ответ должен быть числом!')
+        return
+    data = await state.get_data()
+    words = data['words']
+
+    gl = ["у", "е", "ы", "а", "о", "э", "я", "и", "ю"]
+    pos = data['pos']
+    total = data['total']
+    syllable = 0
+    incorrect = data['incorrect']
+
+    if pos + 1 == len(words) or 'Закончить' in message.text:
+        correct = total - len(incorrect)
+        await message.answer(f'total - {total}\ncorrect - {correct}\nincorrect - {len(incorrect)}', reply_markup=await menu_markup(message))
+        await state.finish()
+        return
+
+    word = words[pos]
+    wgl = []
+    for letter in word:
+
+        if letter.lower() in gl:
+            wgl.append(letter.lower())
+            if letter.isupper():
+                syllable = len(wgl)
+
+    if int(message.text) == syllable:
+        await message.answer('Верно!')
+        total += 1
+    else:
+        await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>', parse_mode=ParseMode.HTML,
+                             reply_markup=await reply_cancel_markup())
+        incorrect.append([word, message.text])
+    pos += 1
+
+    await message.answer(f'{pos + 1}/{len(words)}) {words[pos].lower()} --> ')
+    await state.update_data({'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect})
+    await Orthoepy.main.set()
+
 
 @dp.message_handler(commands=['mymarks'], state='*')
 async def mark_report(message: Message, state: FSMContext):
@@ -312,8 +361,22 @@ async def bind(message: Message, state: FSMContext):
     await Bind.picked_source.set()
 
 
+@dp.message_handler(commands='orthoepy', state='*')
+async def orthoepy(message: Message, state: FSMContext):
+    await cancel_state(state)
+
+    with open('orthoepy.txt') as f:
+        words = [w.strip() for w in f.readlines()]
+        # shuffle(words)
+
+    await message.answer(f'1/{len(words)}) {words[0].lower()} --> ', reply_markup=await reply_cancel_markup())
+
+    await Orthoepy.main.set()
+    await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': []})
+
+
 @dp.callback_query_handler(state=Bind.picked_source)
-async def state_picked_source(call: CallbackQuery, state: FSMContext):
+async def state_Bind_picked_source(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
@@ -333,7 +396,7 @@ async def state_picked_source(call: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query_handler(state=Bind.picked_grade)
-async def state_picked_grade(call: CallbackQuery, state: FSMContext):
+async def state_Bind_picked_grade(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
@@ -355,7 +418,7 @@ async def state_picked_grade(call: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query_handler(state=Bind.picked_subject)
-async def state_picked_subject(call: CallbackQuery, state: FSMContext):
+async def state_Bind_picked_subject(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
@@ -371,11 +434,15 @@ async def state_picked_subject(call: CallbackQuery, state: FSMContext):
     await state.update_data({'books_data': books_data})
 
     msgs_to_delete = state_data['msgs_to_delete']
+    await call.message.delete()
 
     for i in range(0, len(books_data)):
         try:
             bmarkup = InlineKeyboardMarkup().add(InlineKeyboardButton('Выбрать', callback_data=str(i)))
-            msg = await call.message.answer_photo(books_data[i]["img_url"], caption=f'<b>{i+1}</b>. <a href="{books_data[i]["book_url"]}">{books_data[i]["img_title"]}</a>\n<code>{books_data[i]["author"]}</code>', parse_mode=ParseMode.HTML, reply_markup=bmarkup, disable_notification=True)
+            msg = await call.message.answer_photo(books_data[i]["img_url"],
+                                                  caption=f'<b>{i + 1} / {len(books_data)}</b>. <a href="{books_data[i]["book_url"]}">{books_data[i]["img_title"]}</a>\n<code>{books_data[i]["author"]}</code>',
+                                                  parse_mode=ParseMode.HTML, reply_markup=bmarkup,
+                                                  disable_notification=True)
             msgs_to_delete.append(msg.message_id)
         except:
             print(books_data[i])
@@ -384,13 +451,14 @@ async def state_picked_subject(call: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query_handler(state=Bind.picked_book)
-async def state_picked_book(call: CallbackQuery, state: FSMContext):
+async def state_Bind_picked_book(call: CallbackQuery, state: FSMContext):
     state_data = await state.get_data()
     await state.update_data({'book_url': state_data['books_data'][int(call.data)]['book_url']})
 
-    msg = await call.message.answer('Введите alias для этого предмета:\nНапример: <code>алг</code> (пример поиска номера: <i>алг 135</i>). <i>алг</i> - это '
-                              'alias для вашего предмета, <i>135</i> это номер задания и тп. ',
-                              parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
+    msg = await call.message.answer(
+        'Введите alias для этого предмета:\nНапример: <code>алг</code> (пример поиска номера: <i>алг 135</i>). <i>алг</i> - это '
+        'alias для вашего предмета, <i>135</i> это номер задания и тп. ',
+        parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
 
     msgs_to_delete = state_data['msgs_to_delete']
     msgs_to_delete.append(msg.message_id)
@@ -429,86 +497,93 @@ async def other_messages(message: Message):
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
 
+    else:
+        await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)  # ! TODO GDZ
+        # mgdz = ModernGDZ(message.from_user.id)
+        # aliases = await sql.get_data(message.from_user.id, 'aliases')
+        # if low in aliases:
+        #
+
     # *  gdz...
-    elif ('алгм' in low) or ('algm' in low):
-        try:
-            subject, paragaph, num = low.split(' ', 2)
-            paragaph = int(paragaph)
-            await gdz_sender(num, gdz.algm_pomogalka, message, 'Алгебра Мордкович', paragaph)
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено задания с таким номером!')
-
-    elif ('алг' in low) or ('alg' in low):
-        try:
-            subject, var = low.split(' ', 1)
-            await gdz_sender(var, gdz.alg_megaresheba, message, 'Алгебра')
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено задания с таким номером!')
-
-    elif ('гео' in low) or ('geo' in low):
-        try:
-            subject, var = low.split(' ', 1)
-            await gdz_sender(var, gdz.geom_megaresheba, message, 'Геометрия')
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено задания с таким номером!')
-
-    elif ('физ' in low) or ('phiz' in low):
-        try:
-            subject, var = low.split(' ', 1)
-            await gdz_sender(var, gdz.phiz_megaresheba, message, 'Физика')
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено задания с таким номером')
-
-    elif ('анг' in low) or ('ang' in low):
-        try:
-            subject, page = low.split(' ', 1)
-            await gdz_sender(page, gdz.ang_megaresheba, message, 'Английский')
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except ConnectionError:
-            await message.answer('Не найдено страницы с таким номером!')
-        except exceptions.URLHostIsEmpty:
-            await message.answer(emojize('На сайте нет этого номера:sad_but_relieved_face:'))
-
-    elif ('хим' in low) or ('him' in low):
-        try:
-            subject, tem, work, var = low.split(' ', 3)
-            tem = int(tem)
-            work = int(work)
-            await gdz_sender(var, gdz.him_putin, message, 'Химия', tem, work)
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено заданием с таким номером!')
-
-    elif ('инф' in low) or ('inf' in low):
-        try:
-            subject, task, num = low.split(' ', 2)
-            await gdz_sender(num, gdz.inf_kpolyakova, message, 'Информатика Полякова', task)
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено заданием с таким номером!')
-
-
-    elif ('кист' in low) or ('kist' in low):
-        try:
-            subject, page = low.split(' ', 1)
-            page = int(page)
-            response = await gdz.kist(page)
-            await message.answer_photo(response)
-        except ValueError:
-            await message.answer('Некорректное число!')
-        except:
-            await message.answer('Не найдено заданием с таким номером!')
+    # elif ('алгм' in low) or ('algm' in low):
+    #     try:
+    #         subject, paragaph, num = low.split(' ', 2)
+    #         paragaph = int(paragaph)
+    #         await gdz_sender(num, gdz.algm_pomogalka, message, 'Алгебра Мордкович', paragaph)
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено задания с таким номером!')
+    #
+    # elif ('алг' in low) or ('alg' in low):
+    #     try:
+    #         subject, var = low.split(' ', 1)
+    #         await gdz_sender(var, gdz.alg_megaresheba, message, 'Алгебра')
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено задания с таким номером!')
+    #
+    # elif ('гео' in low) or ('geo' in low):
+    #     try:
+    #         subject, var = low.split(' ', 1)
+    #         await gdz_sender(var, gdz.geom_megaresheba, message, 'Геометрия')
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено задания с таким номером!')
+    #
+    # elif ('физ' in low) or ('phiz' in low):
+    #     try:
+    #         subject, var = low.split(' ', 1)
+    #         await gdz_sender(var, gdz.phiz_megaresheba, message, 'Физика')
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено задания с таким номером')
+    #
+    # elif ('анг' in low) or ('ang' in low):
+    #     try:
+    #         subject, page = low.split(' ', 1)
+    #         await gdz_sender(page, gdz.ang_megaresheba, message, 'Английский')
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except ConnectionError:
+    #         await message.answer('Не найдено страницы с таким номером!')
+    #     except exceptions.URLHostIsEmpty:
+    #         await message.answer(emojize('На сайте нет этого номера:sad_but_relieved_face:'))
+    #
+    # elif ('хим' in low) or ('him' in low):
+    #     try:
+    #         subject, tem, work, var = low.split(' ', 3)
+    #         tem = int(tem)
+    #         work = int(work)
+    #         await gdz_sender(var, gdz.him_putin, message, 'Химия', tem, work)
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено заданием с таким номером!')
+    #
+    # elif ('инф' in low) or ('inf' in low):
+    #     try:
+    #         subject, task, num = low.split(' ', 2)
+    #         await gdz_sender(num, gdz.inf_kpolyakova, message, 'Информатика Полякова', task)
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено заданием с таким номером!')
+    #
+    #
+    # elif ('кист' in low) or ('kist' in low):
+    #     try:
+    #         subject, page = low.split(' ', 1)
+    #         page = int(page)
+    #         response = await gdz.kist(page)
+    #         await message.answer_photo(response)
+    #     except ValueError:
+    #         await message.answer('Некорректное число!')
+    #     except:
+    #         await message.answer('Не найдено заданием с таким номером!')
 
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*')

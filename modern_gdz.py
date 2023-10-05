@@ -99,4 +99,4 @@ class ModernGDZ:
             r = requests.get(url, headers=headers)
             data = r.json()['editions'][0]['images']
             imgs = [self.main_url + img_url['url'] for img_url in data]
-            return imgs
+            return [imgs, url]
