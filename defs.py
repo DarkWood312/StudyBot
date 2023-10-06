@@ -71,7 +71,7 @@ async def orthoepy_word_formatting(words: list, pos: int):
         if letter.lower() in db.gl:
             letter = f'<b>{letter}</b>'
         word = word + letter
-    output = f'<code>{pos + 1}/{len(words)})</code> {word.upper()} <b>--></b> '
+    output = f'<code>{pos + 1}/{len(words)})</code> {word.upper()}'
     return output
 
 
