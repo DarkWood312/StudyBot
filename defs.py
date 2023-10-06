@@ -82,5 +82,5 @@ async def cancel_state(state: FSMContext):
 
 
 async def main_message(message: Message):
-    await message.answer(db.gdz_help, parse_mode=ParseMode.HTML,
+    await message.answer(db.gdz_help_non_gdz, parse_mode=ParseMode.HTML,
                          reply_markup=await menu_markup(message))
