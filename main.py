@@ -122,6 +122,12 @@ async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
     await message.answer('Действие отменено.')
 
+@dp.message_handler(commands=['start'], state='*')
+async def start_message(message: Message, state: FSMContext):
+    await cancel_state(state)
+    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
+                       message.from_user.last_name)
+    await main_message(message)
 
 # @dp.message_handler(commands=['login'], state='*')
 # async def login(message: Message, state: FSMContext):
@@ -208,11 +214,11 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
 
     if int(message.text) == syllable:
         await message.answer('Верно!')
-        total += 1
     else:
         await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>', parse_mode=ParseMode.HTML,
                              reply_markup=await reply_cancel_markup())
         incorrect.append([word, message.text])
+    total += 1
     pos += 1
 
     await message.answer(f'{pos + 1}/{len(words)}) {words[pos].lower()} --> ')
@@ -339,14 +345,6 @@ async def OptionState(message: Message, state: FSMContext):
         await message.answer('no state')
 
 
-@dp.message_handler(commands=['start'], state='*')
-async def start_message(message: Message, state: FSMContext):
-    await cancel_state(state)
-    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
-                       message.from_user.last_name)
-    await main_message(message)
-
-
 @dp.message_handler(commands=['bind'], state='*')
 async def bind(message: Message, state: FSMContext):
     await cancel_state(state)
@@ -367,7 +365,7 @@ async def orthoepy(message: Message, state: FSMContext):
 
     with open('orthoepy.txt') as f:
         words = [w.strip() for w in f.readlines()]
-        # shuffle(words)
+        shuffle(words)
 
     await message.answer(f'1/{len(words)}) {words[0].lower()} --> ', reply_markup=await reply_cancel_markup())
 
