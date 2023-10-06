@@ -1,6 +1,5 @@
 import json
 import logging
-import math
 from random import shuffle
 
 from aiogram.utils import exceptions
@@ -121,18 +120,23 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
 @dp.message_handler(commands=['cancel'], state='*')
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
+    await message.delete()
     await message.answer('Действие отменено.')
+
 
 @dp.message_handler(commands=['start'], state='*')
 async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
+    await message.delete()
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     await main_message(message)
 
+
 # @dp.message_handler(commands=['login'], state='*')
 # async def login(message: Message, state: FSMContext):
 #     await cancel_state(state)
+#     await message.delete()
 #     current_logpass = await sql.get_logpass(message.from_user.id)
 #     if not current_logpass is None:
 #         await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
@@ -200,7 +204,9 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
     if pos + 1 == len(words) or 'Закончить' in message.text:
         correct = total - len(incorrect)
         percentage = round(correct / total * 100 if total > 0 else 0, 1)
-        await message.answer(f'<b>Всего</b> - <code>{total}</code>\n<b>Правильных</b> - <code>{correct}</code>\n<b>Неправильных</b> - <code>{len(incorrect)}</code>\n<b>В процентах</b> - <code>{percentage}%</code>', reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
+        await message.answer(
+            f'<b>Всего</b> - <code>{total}</code>\n<b>Правильных</b> - <code>{correct}</code>\n<b>Неправильных</b> - <code>{len(incorrect)}</code>\n<b>В процентах</b> - <code>{percentage}%</code>',
+            reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
         for m in msgs_to_delete:
             await bot.delete_message(message.chat.id, m)
         if 'Закончить' in message.text:
@@ -220,8 +226,9 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
     if int(message.text) == syllable:
         is_correct = await message.answer('Верно!')
     else:
-        is_correct = await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>', parse_mode=ParseMode.HTML,
-                             reply_markup=await reply_cancel_markup())
+        is_correct = await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>',
+                                          parse_mode=ParseMode.HTML,
+                                          reply_markup=await reply_cancel_markup())
         incorrect.append([word, message.text])
     total += 1
     pos += 1
@@ -232,13 +239,15 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
     msgs_to_delete.append(message.message_id)
     msgs_to_delete.append(is_correct.message_id)
 
-    await state.update_data({'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect, 'msgs_to_delete': msgs_to_delete})
+    await state.update_data(
+        {'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect, 'msgs_to_delete': msgs_to_delete})
     await Orthoepy.main.set()
 
 
 @dp.message_handler(commands=['mymarks'], state='*')
 async def mark_report(message: Message, state: FSMContext):
     await cancel_state(state)
+    await message.delete()
     logpass = await sql.get_logpass(message.from_user.id)
     if logpass is None:
         await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
@@ -358,6 +367,7 @@ async def OptionState(message: Message, state: FSMContext):
 @dp.message_handler(commands=['bind'], state='*')
 async def bind(message: Message, state: FSMContext):
     await cancel_state(state)
+    await message.delete()
 
     source_markup = InlineKeyboardMarkup()
     for gdz_source in db.available_gdzs.values():
@@ -378,8 +388,8 @@ async def orthoepy(message: Message, state: FSMContext):
         words = [w.strip() for w in f.readlines()]
         shuffle(words)
 
-    msg = await message.answer(await orthoepy_word_formatting(words, 0), reply_markup=await reply_cancel_markup(), parse_mode=ParseMode.HTML)
-
+    msg = await message.answer(await orthoepy_word_formatting(words, 0), reply_markup=await reply_cancel_markup(),
+                               parse_mode=ParseMode.HTML)
 
     await Orthoepy.main.set()
     await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': [], 'msgs_to_delete': [msg.message_id]})
