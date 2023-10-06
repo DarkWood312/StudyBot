@@ -120,23 +120,24 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
 @dp.message_handler(commands=['cancel'], state='*')
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
-    await message.delete()
     await message.answer('Действие отменено.')
+
+    await message.delete()
 
 
 @dp.message_handler(commands=['start'], state='*')
 async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
-    await message.delete()
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     await main_message(message)
+
+    await message.delete()
 
 
 # @dp.message_handler(commands=['login'], state='*')
 # async def login(message: Message, state: FSMContext):
 #     await cancel_state(state)
-#     await message.delete()
 #     current_logpass = await sql.get_logpass(message.from_user.id)
 #     if not current_logpass is None:
 #         await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
@@ -247,7 +248,6 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
 @dp.message_handler(commands=['mymarks'], state='*')
 async def mark_report(message: Message, state: FSMContext):
     await cancel_state(state)
-    await message.delete()
     logpass = await sql.get_logpass(message.from_user.id)
     if logpass is None:
         await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
@@ -264,6 +264,8 @@ async def mark_report(message: Message, state: FSMContext):
         markup.add(InlineKeyboardButton(f'{subject} - {avg}', callback_data=string_marks))
 
     await message.answer('Оценки: ', reply_markup=markup)
+
+    await message.delete()
 
 
 @dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
@@ -367,7 +369,6 @@ async def OptionState(message: Message, state: FSMContext):
 @dp.message_handler(commands=['bind'], state='*')
 async def bind(message: Message, state: FSMContext):
     await cancel_state(state)
-    await message.delete()
 
     source_markup = InlineKeyboardMarkup()
     for gdz_source in db.available_gdzs.values():
@@ -376,13 +377,14 @@ async def bind(message: Message, state: FSMContext):
 
     await message.answer('Выберите источник ГДЗ:', reply_markup=source_markup)
 
+    await message.delete()
+
     await Bind.picked_source.set()
 
 
 @dp.message_handler(commands='orthoepy', state='*')
 async def orthoepy(message: Message, state: FSMContext):
     await cancel_state(state)
-    await message.delete()
 
     with open('orthoepy.txt', encoding='utf-8') as f:
         words = [w.strip() for w in f.readlines()]
@@ -390,6 +392,8 @@ async def orthoepy(message: Message, state: FSMContext):
 
     msg = await message.answer(await orthoepy_word_formatting(words, 0), reply_markup=await reply_cancel_markup(),
                                parse_mode=ParseMode.HTML)
+
+    await message.delete()
 
     await Orthoepy.main.set()
     await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': [], 'msgs_to_delete': [msg.message_id]})
@@ -492,6 +496,7 @@ async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/StudyBot")}',
                          parse_mode=ParseMode.HTML)
+    await message.delete()
 
 
 @dp.message_handler(commands=['docs', 'documents'], state='*')
@@ -500,6 +505,7 @@ async def documents(message: Message):
     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
     inline_kb.row(algm_button)
     await message.answer('Документы', reply_markup=inline_kb)
+    await message.delete()
 
 
 @dp.message_handler(content_types=types.ContentType.TEXT, state='*')
