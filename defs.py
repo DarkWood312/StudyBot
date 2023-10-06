@@ -62,42 +62,17 @@ async def modern_gdz_process(user_id, arr, doc: bool = None):
     return [l[i:i + sep] for i in range(0, len(l), sep)]
 
 
-# async def orthoepy(user_id, file: io, is_shuffle: bool = True):
-#     gl = ["у", "е", "ы", "а", "о", "э", "я", "и", "ю"]
-#     words = [w.strip() for w in file.readlines()]
-#
-#     total = 0
-#     incorrect = []
-#     syllable = 0
-#
-#     if is_shuffle:
-#         shuffle(words)
-#
-#     for word in words:
-#         wgl = []
-#         for letter in word:
-#
-#             if letter.lower() in gl:
-#                 wgl.append(letter.lower())
-#                 if letter.isupper():
-#                     syllable = len(wgl)
-#
-#         print(wgl, syllable)
-#
-#         # ans = input(f'{word.lower()} --> ')
-#         if not ans.isdigit():
-#             break
-#         if int(ans) == syllable:
-#             print('✔️')
-#             total += 1
-#         else:
-#             print(f'❌ Правильный ответ - {syllable}')
-#             incorrect.append([word, ans])
-#
-#     correct = total - len(incorrect)
-#     print(f'total - {total}\ncorrect - {correct}\nincorrect - {len(incorrect)}')
-#     return {'total': total, 'correct': correct, 'incorrect': {incorrect}}
-
+async def orthoepy_word_formatting(words: list, pos: int):
+    """
+    PARSEMODE.HTML !!!
+    """
+    word = ''
+    for letter in words[pos]:
+        if letter.lower() in db.gl:
+            letter = f'<b>{letter}</b>'
+        word = word + letter
+    output = f'<code>{pos + 1}/{len(words)})</code> {word.upper()} <b>--></b> '
+    return output
 
 
 async def cancel_state(state: FSMContext):

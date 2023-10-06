@@ -31,4 +31,6 @@ doc_ids = {
     'algm': 'BQACAgIAAxkBAAIDkGOQ6wYgKv3CSNOwOvUwDW01owNeAAJhJgAC10SISFwGRw3DwWxHKwQ'
 }
 
+gl = ["у", "е", 'ё', "ы", "а", "о", "э", "я", "и", "ю"]
+
 available_gdzs = {'gdz_putina': 'gdz-putina.fun'}

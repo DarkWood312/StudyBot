@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from random import shuffle
 
 from aiogram.utils import exceptions
@@ -16,7 +17,7 @@ from netschoolapi.errors import AuthError
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup
 from netschool import NetSchool
 
-from defs import modern_gdz_sender, cancel_state, main_message
+from defs import modern_gdz_sender, cancel_state, main_message, orthoepy_word_formatting
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -190,8 +191,7 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
         return
     data = await state.get_data()
     words = data['words']
-
-    gl = ["у", "е", "ы", "а", "о", "э", "я", "и", "ю"]
+    msgs_to_delete = data['msgs_to_delete']
     pos = data['pos']
     total = data['total']
     syllable = 0
@@ -199,7 +199,12 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
 
     if pos + 1 == len(words) or 'Закончить' in message.text:
         correct = total - len(incorrect)
-        await message.answer(f'total - {total}\ncorrect - {correct}\nincorrect - {len(incorrect)}', reply_markup=await menu_markup(message))
+        percentage = round(correct / total * 100 if total > 0 else 0, 1)
+        await message.answer(f'<b>Всего</b> - <code>{total}</code>\n<b>Правильных</b> - <code>{correct}</code>\n<b>Неправильных</b> - <code>{len(incorrect)}</code>\n<b>В процентах</b> - <code>{percentage}%</code>', reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
+        for m in msgs_to_delete:
+            await bot.delete_message(message.chat.id, m)
+        if 'Закончить' in message.text:
+            await message.delete()
         await state.finish()
         return
 
@@ -207,22 +212,27 @@ async def state_Orthoepy_main(message: Message, state: FSMContext):
     wgl = []
     for letter in word:
 
-        if letter.lower() in gl:
+        if letter.lower() in db.gl:
             wgl.append(letter.lower())
             if letter.isupper():
                 syllable = len(wgl)
 
     if int(message.text) == syllable:
-        await message.answer('Верно!')
+        is_correct = await message.answer('Верно!')
     else:
-        await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>', parse_mode=ParseMode.HTML,
+        is_correct = await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>', parse_mode=ParseMode.HTML,
                              reply_markup=await reply_cancel_markup())
         incorrect.append([word, message.text])
     total += 1
     pos += 1
 
-    await message.answer(f'{pos + 1}/{len(words)}) {words[pos].lower()} --> ')
-    await state.update_data({'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect})
+    msg = await message.answer(await orthoepy_word_formatting(words, pos), parse_mode=ParseMode.HTML)
+
+    msgs_to_delete.append(msg.message_id)
+    msgs_to_delete.append(message.message_id)
+    msgs_to_delete.append(is_correct.message_id)
+
+    await state.update_data({'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect, 'msgs_to_delete': msgs_to_delete})
     await Orthoepy.main.set()
 
 
@@ -362,15 +372,17 @@ async def bind(message: Message, state: FSMContext):
 @dp.message_handler(commands='orthoepy', state='*')
 async def orthoepy(message: Message, state: FSMContext):
     await cancel_state(state)
+    await message.delete()
 
-    with open('orthoepy.txt') as f:
+    with open('orthoepy.txt', encoding='utf-8') as f:
         words = [w.strip() for w in f.readlines()]
         shuffle(words)
 
-    await message.answer(f'1/{len(words)}) {words[0].lower()} --> ', reply_markup=await reply_cancel_markup())
+    msg = await message.answer(await orthoepy_word_formatting(words, 0), reply_markup=await reply_cancel_markup(), parse_mode=ParseMode.HTML)
+
 
     await Orthoepy.main.set()
-    await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': []})
+    await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': [], 'msgs_to_delete': [msg.message_id]})
 
 
 @dp.callback_query_handler(state=Bind.picked_source)
@@ -494,6 +506,9 @@ async def other_messages(message: Message):
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
                 f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+    elif 'закончить' in low:
+        await message.delete()
+        await main_message(message)
 
     else:
         await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)  # ! TODO GDZ
