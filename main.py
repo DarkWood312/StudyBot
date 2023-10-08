@@ -191,58 +191,62 @@ async def state_Bind_picked_alias(message: Message, state: FSMContext):
 
 @dp.message_handler(state=Orthoepy.main)
 async def state_Orthoepy_main(message: Message, state: FSMContext):
-    if not message.text.isdigit() and 'Закончить' not in message.text:
-        await message.answer('Ответ должен быть числом!')
-        return
     data = await state.get_data()
-    words = data['words']
     msgs_to_delete = data['msgs_to_delete']
+    words = data['words']
     pos = data['pos']
     total = data['total']
-    syllable = 0
     incorrect = data['incorrect']
+    syllable = 0
 
-    if pos + 1 == len(words) or 'Закончить' in message.text:
-        correct = total - len(incorrect)
-        percentage = round(correct / total * 100 if total > 0 else 0, 1)
-        await message.answer(
-            f'<b>Всего</b> - <code>{total}</code>\n<b>Правильных</b> - <code>{correct}</code>\n<b>Неправильных</b> - <code>{len(incorrect)}</code>\n<b>В процентах</b> - <code>{percentage}%</code>',
-            reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
-        for m in msgs_to_delete:
-            await bot.delete_message(message.chat.id, m)
-        if 'Закончить' in message.text:
-            await message.delete()
-        await state.finish()
-        return
+    if not message.text.isdigit() and 'Закончить' not in message.text:
+        err = await message.answer('Ответ должен быть числом!')
+        msgs_to_delete.append(err.message_id)
 
-    word = words[pos]
-    wgl = []
-    for letter in word:
-
-        if letter.lower() in db.gl:
-            wgl.append(letter.lower())
-            if letter.isupper():
-                syllable = len(wgl)
-
-    if int(message.text) == syllable:
-        is_correct = await message.answer('Верно!')
     else:
-        is_correct = await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>',
-                                          parse_mode=ParseMode.HTML,
-                                          reply_markup=await reply_cancel_markup())
-        incorrect.append([word, message.text])
-    total += 1
-    pos += 1
+        if pos + 1 == len(words) or 'Закончить' in message.text:
+            correct = total - len(incorrect)
+            percentage = round(correct / total * 100 if total > 0 else 0, 1)
+            await message.answer(
+                f'<b>Всего</b> - <code>{total}</code>\n<b>Правильных</b> - <code>{correct}</code>\n<b>Неправильных</b> - <code>{len(incorrect)}</code>\n<b>В процентах</b> - <code>{percentage}%</code>',
+                reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
+            for m in msgs_to_delete:
+                await bot.delete_message(message.chat.id, m)
+            if 'Закончить' in message.text:
+                await message.delete()
+            await state.finish()
+            if len(incorrect) > 0:
+                for incorrect_word in incorrect:
+                    await sql.add_orthoepy(incorrect_word[0], 1)
+            return
 
-    msg = await message.answer(await orthoepy_word_formatting(words, pos), parse_mode=ParseMode.HTML)
+        word = words[pos]
+        wgl = []
+        for letter in word:
 
-    msgs_to_delete.append(msg.message_id)
+            if letter.lower() in db.gl:
+                wgl.append(letter.lower())
+                if letter.isupper():
+                    syllable = len(wgl)
+
+        if int(message.text) == syllable:
+            is_correct = await message.answer('Верно!')
+        else:
+            is_correct = await message.answer(f'Неправильно! Правильный ответ - <b>{syllable}</b>',
+                                              parse_mode=ParseMode.HTML,
+                                              reply_markup=await reply_cancel_markup())
+            incorrect.append([word, message.text])
+        total += 1
+        pos += 1
+
+        msg = await message.answer(await orthoepy_word_formatting(words, pos), parse_mode=ParseMode.HTML)
+        msgs_to_delete.append(msg.message_id)
+        msgs_to_delete.append(is_correct.message_id)
+
     msgs_to_delete.append(message.message_id)
-    msgs_to_delete.append(is_correct.message_id)
 
     await state.update_data(
         {'words': words, 'pos': pos, 'total': total, 'incorrect': incorrect, 'msgs_to_delete': msgs_to_delete})
-    await Orthoepy.main.set()
 
 
 @dp.message_handler(commands=['mymarks'], state='*')
@@ -397,6 +401,21 @@ async def orthoepy(message: Message, state: FSMContext):
 
     await Orthoepy.main.set()
     await state.update_data({'words': words, 'pos': 0, 'total': 0, 'incorrect': [], 'msgs_to_delete': [msg.message_id]})
+
+
+@dp.message_handler(commands='ostats', state='*')
+async def orthoepy_statistics(message: Message, state: FSMContext):
+    await cancel_state(state)
+    max = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else 10
+    if not str(max).isdigit():
+        await message.answer('<b>Использование:</b> /ostats <кол-во строк>', parse_mode=ParseMode.HTML)
+        return
+    else:
+        max = int(max)
+        statistics = (await sql.get_orthoepy(max)).items()
+        text = f'Топ <b>{max}</b> слов, которые вызывают проблемы в орфоэпии:\n' + '\n'.join([f'<b>{l[0]}</b>: <code>{l[1]}</code>' for l in statistics])
+        await message.answer(text, parse_mode=ParseMode.HTML)
+    await message.delete()
 
 
 @dp.callback_query_handler(state=Bind.picked_source)
