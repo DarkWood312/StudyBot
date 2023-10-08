@@ -7,3 +7,4 @@ emoji==2.2.0
 python-dotenv==1.0.0
 netschoolapi==11.0.4
 async-class==0.3.0
+asyncpg==0.28.0
