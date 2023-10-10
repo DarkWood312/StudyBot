@@ -1,3 +1,5 @@
+from typing import List
+
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup
 from emoji import emojize
 
@@ -8,6 +10,7 @@ async def menu_markup(message):
     return ReplyKeyboardMarkup(resize_keyboard=True).add(
         KeyboardButton(emojize(
             f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}')))
+
 
 async def cancel_markup():
     markup = InlineKeyboardMarkup()
@@ -20,4 +23,12 @@ async def reply_cancel_markup():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     cancel_button = KeyboardButton('Закончить❌')
     markup.add(cancel_button)
+    return markup
+
+
+async def orthoepy_word_markup(gls: List[str]):
+    markup = InlineKeyboardMarkup()
+    for gl in range(1, len(gls) + 1):
+        gl = str(gl)
+        markup.add(InlineKeyboardButton(f'{gl}. {gls[int(gl)-1].upper()}', callback_data=gl))
     return markup
