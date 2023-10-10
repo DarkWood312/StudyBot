@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 from random import shuffle
 
 from aiogram.utils import exceptions
@@ -200,19 +201,49 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, call: Callbac
         correct = total - len(incorrect)
         percentage = round(correct / total * 100 if total > 0 else 0, 1)
         text = f'<b>Статистика по орфоэпии:</b>\n<i>Всего</i> - <code>{total}</code>\n<i>Правильных</i> - <code>{correct}</code>\n<i>Неправильных</i> - <code>{len(incorrect)}</code>\n<i>В процентах</i> - <code>{percentage}%</code>'
-        if call is None:
-            await message.answer(text, reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
-            for m in msgs_to_delete:
-                await bot.delete_message(message.chat.id, m)
-            await message.delete()
+
+        if call is not None:
+            message = call.message
         else:
-            await call.message.answer(text, reply_markup=await menu_markup(call), parse_mode=ParseMode.HTML)
-            for m in msgs_to_delete:
-                await bot.delete_message(call.message.chat.id, m)
+            await message.delete()
+
+        await message.answer(text, reply_markup=await menu_markup(message), parse_mode=ParseMode.HTML)
+        for m in msgs_to_delete:
+            await bot.delete_message(message.chat.id, m)
         await state.finish()
         if len(incorrect) > 0:
             for incorrect_word in incorrect:
                 await sql.add_orthoepy(incorrect_word[0], 1)
+
+        # * Randoms
+        rand = random.randint(1, 100)
+        # await message.answer(rand)
+        total_floor = 10
+        if rand <= 5:
+            await message.answer_video_note(db.video_note_answers['nikita_lucky-1'])
+        elif 5 < rand <= 10:
+            await message.answer_video_note(db.video_note_answers['nikita_lucky-2'])
+        elif percentage == 100 and total == 1:
+            await message.answer_video_note(db.video_note_answers['nikita_fake_100-1'])
+        elif percentage == 0 and total == 1:
+            await message.answer_video_note(db.video_note_answers['nikita_fake_100-2'])
+        elif percentage == 0 and total >= total_floor:
+            if rand <= 25:
+                await message.answer_video_note(db.video_note_answers['nikita_fu-2'])
+                await message.answer_video_note(db.video_note_answers['nikita_fu-3'])
+            else:
+                await message.answer_video_note(db.video_note_answers['nikita_fu-1'])
+        elif percentage <= 10 and total >= total_floor:
+            if rand <= 10:
+                await message.answer_video_note(db.video_note_answers['nikita_less10-2'])
+            else:
+                await message.answer_video_note(db.video_note_answers['nikita_less_10-1'])
+        elif 80 > percentage >= 50 and total >= total_floor:
+            await message.answer_video_note(db.video_note_answers['nikita_mid-1'])
+        elif 100 > percentage >= 80 and total >= total_floor:
+            await message.answer_video_note(db.video_note_answers['nikita_high-1'])
+        elif 100 > percentage >= 90 and total >= total_floor:
+            await message.answer_video_note(db.video_note_answers['nikita_high-2'])
 
 
 @dp.callback_query_handler(state=Orthoepy.main)
@@ -654,8 +685,8 @@ async def other_messages(message: Message):
     #         await message.answer('Не найдено заданием с таким номером!')
 
 
-@dp.message_handler(content_types=types.ContentType.ANY, state='*')
-async def other_content(message: Message):
+@dp.message_handler(content_types=types.ContentType.ANY, state='*', is_admin=True)
+async def other_content_admin(message: Message):
     if message.from_user.id == db.owner_id:
         cp = message.content_type
         await message.answer(cp)
@@ -677,6 +708,11 @@ async def other_content(message: Message):
             await message.answer('undefined content_type')
     else:
         await message.answer('Я еще не настолько умный')
+
+
+@dp.message_handler(content_types=types.ContentType.ANY, state='*')
+async def other_content(message: Message):
+    await message.answer('Я еще не настолько умный')
 
 
 @dp.callback_query_handler(state='*')
