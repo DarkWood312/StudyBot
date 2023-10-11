@@ -217,8 +217,6 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, call: Callbac
 
         # * Randoms
         rand = random.randint(1, 100)
-        if message.from_user.id == db.owner_id:
-            await message.answer(rand, total)
         total_floor = 10
         if rand <= 5:
             await message.answer_video_note(db.video_note_answers['nikita_lucky-1'])
