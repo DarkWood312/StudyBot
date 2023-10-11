@@ -236,7 +236,7 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, call: Callbac
             if rand <= 10:
                 await message.answer_video_note(db.video_note_answers['nikita_less10-2'])
             else:
-                await message.answer_video_note(db.video_note_answers['nikita_less_10-1'])
+                await message.answer_video_note(db.video_note_answers['nikita_less10-1'])
         elif 80 > percentage >= 50 and total >= total_floor:
             await message.answer_video_note(db.video_note_answers['nikita_mid-1'])
         elif 90 > percentage >= 80 and total >= total_floor:
