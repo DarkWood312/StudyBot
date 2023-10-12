@@ -277,9 +277,11 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext):
     incorrect = data['incorrect']
     correct = data['correct']
     test_mode = data['test_mode'] if 'test_mode' in data else False
-    test_settings = data['test_settings'] if test_mode is not False else None
 
-    amount_of_words = test_settings['amount_of_words'] if test_mode else len(words)
+    amount_of_words = len(words)
+    if test_mode:
+        test_settings = data['test_settings']
+        amount_of_words = test_settings['amount_of_words']
     syllable = 0
 
     word = words[pos]
@@ -503,7 +505,7 @@ async def orthoepy_test(message: Message, state: FSMContext):
 
 @dp.message_handler(commands='orthoepy', state='*')
 async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict = False):
-    if not test_mode:
+    if test_mode is False:
         await cancel_state(state)
 
     with open('orthoepy.txt', encoding='utf-8') as f:
@@ -526,7 +528,9 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
     await state.update_data(
         {'words': words, 'pos': 0, 'total': 0, 'correct': [], 'incorrect': [],
          'msgs_to_delete': [msg.message_id, rules.message_id],
-         'gls': gls, 'test_mode': True})
+         'gls': gls})
+    if test_mode is not False:
+        await state.update_data({'test_mode': True})
 
 
 @dp.message_handler(commands='ostats', state='*')
