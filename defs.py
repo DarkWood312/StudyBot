@@ -62,16 +62,18 @@ async def modern_gdz_process(user_id, arr, doc: bool = None):
     return [l[i:i + sep] for i in range(0, len(l), sep)]
 
 
-async def orthoepy_word_formatting(words: list, pos: int):
+async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int | None = None):
     """
     PARSEMODE.HTML !!!
     """
+    if amount_of_words is None:
+        amount_of_words = len(words)
     word = ''
     for letter in words[pos]:
         if letter.lower() in db.gl:
             letter = f'<b>{letter}</b>'
         word = word + letter
-    output = f'<code>{pos + 1}/{len(words)})</code> {word.upper()}'
+    output = f'<code>{pos + 1}/{amount_of_words})</code> {word.upper()}'
     return output
 
 
@@ -83,4 +85,4 @@ async def cancel_state(state: FSMContext):
 
 async def main_message(message: Message):
     await message.answer(db.gdz_help_non_gdz, parse_mode=ParseMode.HTML,
-                         reply_markup=await menu_markup(message))
+                         reply_markup=await menu_markup(message.from_user.id))

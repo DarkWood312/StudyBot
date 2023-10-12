@@ -6,10 +6,10 @@ from emoji import emojize
 from config import sql
 
 
-async def menu_markup(message):
+async def menu_markup(user_id):
     return ReplyKeyboardMarkup(resize_keyboard=True).add(
         KeyboardButton(emojize(
-            f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}')))
+            f'Сжатие - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}')))
 
 
 async def cancel_markup():
