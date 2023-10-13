@@ -663,13 +663,13 @@ async def author(message: Message):
     await message.delete()
 
 
-@dp.message_handler(commands=['docs', 'documents'], state='*')
-async def documents(message: Message):
-    inline_kb = types.InlineKeyboardMarkup()
-    algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
-    inline_kb.row(algm_button)
-    await message.answer('Документы', reply_markup=inline_kb)
-    await message.delete()
+# @dp.message_handler(commands=['docs', 'documents'], state='*')
+# async def documents(message: Message):
+#     inline_kb = types.InlineKeyboardMarkup()
+#     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
+#     inline_kb.row(algm_button)
+#     await message.answer('Документы', reply_markup=inline_kb)
+#     await message.delete()
 
 
 @dp.message_handler(content_types=types.ContentType.TEXT, state='*')
@@ -781,27 +781,24 @@ async def other_messages(message: Message):
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*', is_admin=True)
 async def other_content_admin(message: Message):
-    if message.from_user.id == db.owner_id:
-        cp = message.content_type
-        await message.answer(cp)
-        if cp == 'sticker':
-            await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'photo':
-            await message.answer(hcode(message.photo[0].file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'audio':
-            await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'document':
-            await message.answer(hcode(message.document.file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'video':
-            await message.answer(hcode(message.video.file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'video_note':
-            await message.answer(hcode(message.video_note.file_id), parse_mode=ParseMode.HTML)
-        elif cp == 'voice':
-            await message.answer(hcode(message.voice.file_id), parse_mode=ParseMode.HTML)
-        else:
-            await message.answer('undefined content_type')
+    cp = message.content_type
+    await message.answer(cp)
+    if cp == 'sticker':
+        await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'photo':
+        await message.answer(hcode(message.photo[0].file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'audio':
+        await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'document':
+        await message.answer(hcode(message.document.file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'video':
+        await message.answer(hcode(message.video.file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'video_note':
+        await message.answer(hcode(message.video_note.file_id), parse_mode=ParseMode.HTML)
+    elif cp == 'voice':
+        await message.answer(hcode(message.voice.file_id), parse_mode=ParseMode.HTML)
     else:
-        await message.answer('Я еще не настолько умный')
+        await message.answer('undefined content_type')
 
 
 @dp.message_handler(content_types=types.ContentType.ANY, state='*')
@@ -814,8 +811,8 @@ async def callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.answer('Действие отменено.')
-    elif call.data == 'algm':
-        await call.message.answer_document(db.doc_ids['algm'])
+    # elif call.data == 'algm':
+    #     await call.message.answer_document(db.doc_ids['algm'])
     elif call.data.startswith(tuple(['2', '3', '4', '5'])):
         call.message.text = call.data
         # await call.message.answer(call.message.text)

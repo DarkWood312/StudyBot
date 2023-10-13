@@ -53,9 +53,9 @@ video_note_answers = {
     'nikita_fake_100-2': 'DQACAgIAAxkBAAIMeGUlonMXzo6rB7kd96Gq1QvcgQOYAALzPAACuqQwSYoTCz6zebNnMAQ'
 }
 
-doc_ids = {
-    'algm': 'BQACAgIAAxkBAAIDkGOQ6wYgKv3CSNOwOvUwDW01owNeAAJhJgAC10SISFwGRw3DwWxHKwQ'
-}
+# doc_ids = {
+#     'algm': 'BQACAgIAAxkBAAIDkGOQ6wYgKv3CSNOwOvUwDW01owNeAAJhJgAC10SISFwGRw3DwWxHKwQ'
+# }
 
 gl = ["у", "е", 'ё', "ы", "а", "о", "э", "я", "и", "ю"]
 
