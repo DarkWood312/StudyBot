@@ -322,6 +322,9 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext):
     gls_markup = await orthoepy_word_markup(gls)
     msg = await call.message.answer(await orthoepy_word_formatting(words, pos, amount_of_words), parse_mode=ParseMode.HTML,
                                     reply_markup=gls_markup)
+    if 'show_answers' in data:
+        if data['show_answers']:
+            await call.message.answer(words[pos])
     msgs_to_delete.append(msg.message_id)
 
 
@@ -499,10 +502,15 @@ async def orthoepy_test_settings(message: Message, state: FSMContext):
 @dp.message_handler(commands='test', state='*')
 async def orthoepy_test(message: Message, state: FSMContext):
     await cancel_state(state)
+    params = message.text.split(' ')
+
 
     await message.answer('<b>Введите свои данные</b> (<i>например:</i> <code>Иванов А, 11Б</code>): ',
                          parse_mode=ParseMode.HTML)
     await Test.credentials.set()
+    if len(params) == 2:
+        if params[1] == 'ans!':
+            await state.update_data({'show_answers': True})
 
 
 @dp.message_handler(commands='orthoepy', state='*')
@@ -527,6 +535,10 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
     await message.delete()
 
     await Orthoepy.main.set()
+    data = await state.get_data()
+    if 'show_answers' in data:
+        if data['show_answers']:
+            await message.answer(words[0])
     await state.update_data(
         {'words': words, 'pos': 0, 'total': 0, 'correct': [], 'incorrect': [],
          'msgs_to_delete': [msg.message_id, rules.message_id],
