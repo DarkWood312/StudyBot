@@ -9,11 +9,24 @@ SQL_PASSWORD=
 ```
 
 ### Database (_PostgreSQL_)
-#### Columns:
-1. `user_id` - bigint
-2. `upscaled` - boolean = false
-3. `username` - text
-4. `user_name` - text
-5. `user_surname` - text
-6. `admin` - boolean = false
-7. `aliases` - jsonb[]
+#### Users
+```
+create table users
+(
+    user_id      bigint not null,
+    upscaled     boolean default false,
+    username     text,
+    user_name    text,
+    user_surname text,
+    admin        boolean default false,
+    alias        jsonb[]
+);
+```
+#### orthoepy_problems
+```
+create table orthoepy_problems
+(
+    word    text              not null,
+    counter integer default 0 not null
+);
+```
