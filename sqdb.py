@@ -1,3 +1,5 @@
+import json
+
 import psycopg2
 import asyncpg
 
@@ -67,7 +69,8 @@ class Sqdb:
         with self.connection:
             self.cursor.execute(f'UPDATE users set {name} = {data} WHERE user_id = {user_id}')
 
-    async def change_data_jsonb(self, user_id, name, data):
+    async def change_data_jsonb(self, user_id, name: str, data: dict):
+        data = json.dumps(data)
         with self.connection:
             self.cursor.execute(f'UPDATE users set {name} = %s::jsonb WHERE user_id = %s', (data, user_id))
 

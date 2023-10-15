@@ -20,7 +20,9 @@ from aiogram.utils.media_group import MediaGroupBuilder
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup
 # from netschool import NetSchool
 
-from defs import cancel_state, main_message, orthoepy_word_formatting
+import copy
+
+from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -59,6 +61,10 @@ class Orthoepy(StatesGroup):
 
 class Test(StatesGroup):
     credentials = State()
+
+
+class Aliases(StatesGroup):
+    main = State()
 
 
 class IsAdmin(Filter):
@@ -185,16 +191,16 @@ async def state_Bind_picked_alias(message: Message, state: FSMContext, bot: Bot)
     old_data = await sql.get_data(message.from_user.id, 'aliases')
     old_data[alias] = state_data['book_url']
 
-    new_data = json.dumps(old_data)
-
-    await sql.change_data_jsonb(message.from_user.id, 'aliases', new_data)
-    msg = await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
+    await sql.change_data_jsonb(message.from_user.id, 'aliases', old_data)
+    msg_ = await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
 
     await cancel_state(state)
     for msg in state_data['msgs_to_delete']:
         await bot.delete_message(message.chat.id, msg)
+
     await asyncio.sleep(3)
-    await msg.delete()
+    await msg_.delete()
+    await message.delete()
 
 
 @dp.message(Orthoepy.main)
@@ -487,7 +493,7 @@ async def bind(message: Message, state: FSMContext):
 
 
 @dp.message(IsAdmin(), Command('test_settings'))
-async def orthoepy_test_settings(message: Message, state: FSMContext, command: CommandObject):
+async def orthoepy_test_settings(message: Message):
     params = message.text.split(' ')
     if len(params) < 2:
         await message.answer('Неправильное количество параметров!')
@@ -558,14 +564,14 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
 @dp.message(Command('ostats'))
 async def orthoepy_statistics(message: Message, state: FSMContext):
     await cancel_state(state)
-    max = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else 10
-    if not str(max).isdigit():
+    maximum = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else 10
+    if not str(maximum).isdigit():
         await message.answer('<b>Использование:</b> /ostats <кол-во строк>', parse_mode=ParseMode.HTML)
         return
     else:
-        max = int(max)
-        statistics = (await sql.get_orthoepy(max)).items()
-        text = f'Топ <b>{max}</b> слов, которые вызывают проблемы в орфоэпии:\n' + '\n'.join(
+        maximum = int(maximum)
+        statistics = (await sql.get_orthoepy(maximum)).items()
+        text = f'Топ <b>{maximum}</b> слов, которые вызывают проблемы в орфоэпии:\n' + '\n'.join(
             [f'<b>{l[0]}</b>: <code>{l[1]}</code>' for l in statistics])
         await message.answer(text, parse_mode=ParseMode.HTML)
     await message.delete()
@@ -676,10 +682,26 @@ async def state_Bind_picked_book(call: CallbackQuery, state: FSMContext, bot: Bo
 
 
 @dp.message(Command('aliases'))
-async def aliases(message: Message):
-    aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
-    text = ', '.join(f'<a href="{html.quote(aliases_dict[i])}">{html.quote(i)}</a>' for i in aliases_dict.keys())
-    await message.answer(text)
+async def aliases(message: Message, state: FSMContext):
+    await message.delete()
+    al_text = await command_alias(message.from_user.id)
+    if len(al_text[0]) == 0:
+        await message.answer('У вас нет alias\'ов! Добавить --> /bind')
+        return
+    await message.answer(f'<b>Список alias\'ов:\nНажать для удаления.</b>\n{al_text[0]}',
+                         reply_markup=al_text[1].as_markup(), disable_web_page_preview=True)
+
+
+@dp.message(Command('kit'))
+async def kit(message: Message, command: CommandObject):
+    if command.args == '11':
+        await message.delete()
+        kit11 = {"алг": "https://gdz-putina.fun/klass-11/algebra/alimov", "анг": "https://gdz-putina.fun/klass-11/anglijskij-yazyk/spotlight-evans", "геом": "https://gdz-putina.fun/klass-11/geometriya/atanasyan"}
+        msg = await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
+        await message.answer('Готово!')
+
+        await asyncio.sleep(3)
+        await msg.delete()
 
 
 @dp.message(Command('author'))
@@ -708,7 +730,7 @@ async def other_messages(message: Message):
 
     if 'сжатие' in low:
         await sql.change_data_type(message.from_user.id, 'upscaled',
-                                   False if await sql.get_data(message.from_user.id, 'upscaled') == True else True)
+                                   False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=await menu_markup(message.from_user.id))
@@ -729,7 +751,6 @@ async def other_messages(message: Message):
             media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{args[1]}</a>', media=inputs)
             # await message.answer(str(imgs))
             await message.answer_media_group(media_group.build())
-
 
     # *  gdz...
     # elif ('алгм' in low) or ('algm' in low):
@@ -845,12 +866,26 @@ async def callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.answer('Действие отменено.')
+    elif call.data.startswith('alias_del'):
+        param = call.data.replace('alias_del-', '')
+
+        old_data = dict(await sql.get_data(call.from_user.id, 'aliases'))
+        old_data.pop(param)
+
+        await sql.change_data_jsonb(call.from_user.id, 'aliases', old_data)
+        await call.answer(f'Alias \'{param}\' успешно удален!')
+
+        al_text = await command_alias(call.from_user.id)
+        await call.message.edit_text(f'<b>Список alias\'ов:\nНажать для удаления.</b>\n{al_text[0]}',
+                                     reply_markup=al_text[1].as_markup(), disable_web_page_preview=True)
+
     # elif call.data == 'algm':
     #     await call.message.answer_document(db.doc_ids['algm'])
     elif call.data.startswith(tuple(['2', '3', '4', '5'])):
         call.message.text = call.data
         # await call.message.answer(call.message.text)
         await average_mark(message=call.message, state=state)
+    await call.answer()
 
 
 async def main():

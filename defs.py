@@ -1,10 +1,11 @@
 import _io
 import io
 
-from aiogram import types
+from aiogram import types, html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from emoji import emojize
@@ -99,6 +100,18 @@ async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int |
         word = word + letter
     output = f'<code>{pos + 1}/{amount_of_words})</code> {word.upper()}'
     return output
+
+
+async def command_alias(user_id):
+    aliases_dict = await sql.get_data(user_id, 'aliases')
+    markup = InlineKeyboardBuilder()
+    markup.add(*[InlineKeyboardButton(text=b, callback_data=f'alias_del-{b}') for b in aliases_dict.keys()])
+    markup.adjust(3)
+
+    aliases_text = ', '.join(
+        f'<a href="{html.quote(aliases_dict[i])}">{html.quote(i)}</a>' for i in aliases_dict.keys())
+
+    return aliases_text, markup
 
 
 async def cancel_state(state: FSMContext):
