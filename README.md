@@ -19,7 +19,7 @@ create table users
     user_name    text,
     user_surname text,
     admin        boolean default false,
-    alias        jsonb[]
+    aliases      jsonb[] default '{}'::jsonb[]
 );
 ```
 #### orthoepy_problems

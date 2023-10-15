@@ -1,7 +1,6 @@
 from difflib import get_close_matches
 
 import requests
-import httpx
 from aiogram import types
 from bs4 import BeautifulSoup
 
@@ -10,7 +9,8 @@ from config import sql
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 '
                   'Safari/537.36 ',
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+              'application/signed-exchange;v=b3;q=0.9',
     'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
 }
@@ -26,19 +26,19 @@ class ModernGDZ:
         self.status = bool(await sql.get_data(self.user_id, 'upscaled'))
         return self.status
 
-    async def process(self, arr, doc: bool = None):
-        if not isinstance(arr, list):
-            sep = 4096
-            l = arr
-        else:
-            if doc is None:
-                doc = await self.get_user_id()
-            sep = 10
-            if doc:
-                l = [types.InputMediaDocument(i) for i in arr]
-            else:
-                l = [types.InputMediaPhoto(i) for i in arr]
-        return [l[i:i + sep] for i in range(0, len(l), sep)]
+    # async def process(self, arr, doc: bool = None):
+    #     if not isinstance(arr, list):
+    #         sep = 4096
+    #         l = arr
+    #     else:
+    #         if doc is None:
+    #             doc = await self.get_user_id()
+    #         sep = 10
+    #         if doc:
+    #             l = [types.InputMediaDocument(media=i) for i in arr]
+    #         else:
+    #             l = [types.InputMediaPhoto(media=i) for i in arr]
+    #     return [l[i:i + sep] for i in range(0, len(l), sep)]
 
     class GdzPutinaFun:
         def __init__(self):
@@ -95,8 +95,16 @@ class ModernGDZ:
 
             return books_list
 
-        async def gdz(self, url) -> list:
-            r = requests.get(url, headers=headers)
-            data = r.json()['editions'][0]['images']
-            imgs = [self.main_url + img_url['url'] for img_url in data]
-            return [imgs, url]
+        async def gdz(self, url, num) -> list:
+            main_content = requests.get(url, headers=headers)
+            task_call = BeautifulSoup(main_content.content, 'lxml').find('div', class_='tasks').find('ul', class_='structure').find(class_='structure-item').find('a').get('href').replace('#task?t=', '')[1:]
+            modified_url = url.replace('https://gdz-putina.fun/', 'https://gdz-putina.fun/json/') + f'/{num}{task_call}'
+            r = requests.get(modified_url, headers=headers)
+            editions = r.json()['editions']
+            data = []
+            for edition in editions:
+                for image in edition['images']:
+                    data.append(image['url'])
+            imgs = [self.main_url + img_url for img_url in data]
+            # return [imgs, url] url is json
+            return imgs

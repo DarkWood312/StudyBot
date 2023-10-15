@@ -1,31 +1,35 @@
+import asyncio
 import json
 import logging
 import random
+import sys
 from random import shuffle
 
-from aiogram.utils import exceptions
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext, filters
-from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, Message, \
-    CallbackQuery, ParseMode, InputMediaPhoto
-from emoji.core import emojize
-from aiogram.utils.markdown import hbold, hcode, hlink
-from netschoolapi.errors import AuthError
+from aiogram.enums import ParseMode
+from aiogram import Bot, Dispatcher, types, F, Router, html
+from aiogram.filters import Filter, Command, CommandStart, CommandObject
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import InlineKeyboardButton, Message, \
+    CallbackQuery, InputMediaPhoto
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.markdown import hbold, hcode, hlink, hide_link
+from aiogram.utils.media_group import MediaGroupBuilder
 
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup
-from netschool import NetSchool
+# from netschool import NetSchool
 
-from defs import modern_gdz_sender, cancel_state, main_message, orthoepy_word_formatting
+from pyshorteners import Shortener
+
+from defs import cancel_state, main_message, orthoepy_word_formatting
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
 from config import token, sql
 
-logging.basicConfig(level=logging.DEBUG)
-bot = Bot(token=token)
-dp = Dispatcher(bot, storage=MemoryStorage())
+router = Router()
+dp = Dispatcher(storage=MemoryStorage())
 
 
 class Marks(StatesGroup):
@@ -59,33 +63,28 @@ class Test(StatesGroup):
     credentials = State()
 
 
-class IsAdminFilter(filters.BoundFilter):
-    key = 'is_admin'
-
-    def __init__(self, is_admin):
+class IsAdmin(Filter):
+    def __init__(self, is_admin: bool = True) -> None:
         self.is_admin = is_admin
 
-    async def check(self, message: Message):
+    async def __call__(self, message: Message) -> bool:
         admins = await sql.get_admins()
-        user = message.from_user.id
-        return int(user) in admins
+        user_id = message.from_user.id
+        return int(user_id) in admins
 
 
-dp.filters_factory.bind(IsAdminFilter)
-
-
-@dp.message_handler(commands=['msg'], state='*', is_admin=True)
-async def send_msg(message: Message):
-    markup = InlineKeyboardMarkup()
+@dp.message(IsAdmin(True), Command('msg'))
+async def send_msg(message: Message, state: FSMContext):
+    markup = InlineKeyboardBuilder()
     users = await sql.get_users()
-    markup.row(InlineKeyboardButton('Отправить всем!', callback_data='all'))
+    markup.row(InlineKeyboardButton(text='Отправить всем!', callback_data='all'))
     for user in users:
         markup.row(InlineKeyboardButton(text=f'{user[0]}, {user[2]}, {user[3]}, {user[4]}', callback_data=f'{user[0]}'))
-    await message.answer('Выбор пользователя для отправки сообщения: ', reply_markup=markup)
-    await SendMessage.receiver.set()
+    await message.answer('Выбор пользователя для отправки сообщения: ', reply_markup=markup.as_markup())
+    await state.set_state(SendMessage.receiver)
 
 
-@dp.callback_query_handler(state=SendMessage.receiver)
+@dp.callback_query(SendMessage.receiver)
 async def state_SendMessage_receiver(call: CallbackQuery, state: FSMContext):
     if call.data == 'all':
         users_id = [user[0] for user in await sql.get_users()]
@@ -93,10 +92,11 @@ async def state_SendMessage_receiver(call: CallbackQuery, state: FSMContext):
     else:
         await state.update_data(receivers=[int(call.data)])
     await call.message.answer('Сообщение: ')
-    await SendMessage.message.set()
+    await state.set_state(SendMessage.message)
+    await call.answer()
 
 
-@dp.message_handler(state=SendMessage.message, content_types=types.ContentType.ANY)
+@dp.message(SendMessage.message)
 async def state_SendMessage_message(message: types.Message, state: FSMContext):
     data = await state.get_data()
     receivers = data['receivers']
@@ -109,28 +109,32 @@ async def state_SendMessage_message(message: types.Message, state: FSMContext):
                 await message.answer(
                     f"""'<code>{message.text}</code>' успешно отправлено <a href="tg://user?id={receiver}">{username if username != 'None' else user_name}</a>""",
                     parse_mode=ParseMode.HTML)
-        except exceptions.BotBlocked:
+        except Exception as e:
             await message.answer('Error. BotBlocked')
-    await message.answer('Закончить монолог?', reply_markup=InlineKeyboardMarkup().row(
-        InlineKeyboardButton('Закончить', callback_data='stop_monolog')))
+            await message.answer(e)
+    await message.answer('Закончить монолог?', reply_markup=InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text='Закончить', callback_data='stop_monolog')).as_markup())
 
 
-@dp.callback_query_handler(state=SendMessage.message)
+@dp.callback_query(SendMessage.message)
 async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'stop_monolog':
-        await state.finish()
+        await state.clear()
         await call.message.answer('Готово.')
+        await call.answer()
 
 
-@dp.message_handler(commands=['cancel'], state='*')
+@dp.message(Command('cancel'))
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
-    await message.answer('Действие отменено.')
-
+    msg = await message.answer('Действие отменено.')
     await message.delete()
 
+    await asyncio.sleep(2)
+    await msg.delete()
 
-@dp.message_handler(commands=['start'], state='*')
+
+@dp.message(CommandStart())
 async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
@@ -140,25 +144,25 @@ async def start_message(message: Message, state: FSMContext):
     await message.delete()
 
 
-# @dp.message_handler(commands=['login'], state='*')
+# @dp.message(Command('login'))
 # async def login(message: Message, state: FSMContext):
 #     await cancel_state(state)
 #     current_logpass = await sql.get_logpass(message.from_user.id)
 #     if not current_logpass is None:
 #         await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
 #     await message.answer('Введите логин от <a href="https://sgo.rso23.ru/">Сетевого города</a>: ', parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
-#     await NetSchoolState.login.set()
+#     await state.set_state(NetSchoolState.login)
 #
 #
-# @dp.message_handler(state=NetSchoolState.login)
+# @dp.message(NetSchoolState.login)
 # async def state_NetSchool_login(message: Message, state: FSMContext):
 #     log = message.text
 #     await state.update_data(log=log)
 #     await message.answer('Введите пароль: ')
-#     await NetSchoolState.password.set()
+#     await state.set_state(NetSchoolState.password)
 #
 #
-# @dp.message_handler(state=NetSchoolState.password)
+# @dp.message(NetSchoolState.password)
 # async def state_NetSchool_password(message: Message, state: FSMContext):
 #     pass_ = message.text
 #     log = (await state.get_data())['log']
@@ -174,28 +178,29 @@ async def start_message(message: Message, state: FSMContext):
 #         await cancel_state(state)
 #         await login(message, state)
 
-@dp.message_handler(state=Bind.picked_alias)
-async def state_Bind_picked_alias(message: Message, state: FSMContext):
+@dp.message(Bind.picked_alias)
+async def state_Bind_picked_alias(message: Message, state: FSMContext, bot: Bot):
     await state.update_data({'alias': message.text.split(' ')[0].lower()})
     state_data = await state.get_data()
     alias = state_data['alias']
 
     old_data = await sql.get_data(message.from_user.id, 'aliases')
-    old_data[alias] = state_data['book_url']  # ! TODO TypeError: 'NoneType' object does not support item assignment
+    old_data[alias] = state_data['book_url']
 
     new_data = json.dumps(old_data)
 
     await sql.change_data_jsonb(message.from_user.id, 'aliases', new_data)
-
-    for msg in state_data['msgs_to_delete']:
-        await bot.delete_message(message.chat.id, msg)
-    await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
+    msg = await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
 
     await cancel_state(state)
+    for msg in state_data['msgs_to_delete']:
+        await bot.delete_message(message.chat.id, msg)
+    await asyncio.sleep(3)
+    await msg.delete()
 
 
-@dp.message_handler(state=Orthoepy.main)
-async def state_Orthoepy_main(message: Message, state: FSMContext, call: CallbackQuery = None):
+@dp.message(Orthoepy.main)
+async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, call: CallbackQuery = None):
     data = await state.get_data()
     msgs_to_delete = data['msgs_to_delete']
     total = data['total']
@@ -225,7 +230,7 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, call: Callbac
         if not test_mode:
             for m in msgs_to_delete:
                 await bot.delete_message(message.chat.id, m)
-        await state.finish()
+        await state.clear()
 
         if test_mode:
             await bot.send_message(test_settings['receiver'], text_teacher, parse_mode=ParseMode.HTML)
@@ -267,9 +272,10 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, call: Callbac
             await message.answer_video_note(db.video_note_answers['nikita_high-2'])
 
 
-@dp.callback_query_handler(state=Orthoepy.main)
-async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext):
+@dp.callback_query(Orthoepy.main)
+async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext, bot: Bot):
     if call.data == '_NO-DATA':
+        await call.answer()
         return
     data = await state.get_data()
     msgs_to_delete = data['msgs_to_delete']
@@ -294,10 +300,10 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext):
             wgl.append(letter.lower())
             if letter.isupper():
                 syllable = len(wgl)
-    edit_markup = InlineKeyboardMarkup()
+    edit_markup = InlineKeyboardBuilder()
     if int(call.data) == syllable:
         if not test_mode:
-            button = InlineKeyboardButton(f'{word} ✅', callback_data='_NO-DATA')
+            button = InlineKeyboardButton(text=f'{word} ✅', callback_data='_NO-DATA')
             edit_markup.add(button)
         correct.append(word)
     else:
@@ -306,29 +312,32 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext):
             edit_markup.add(button)
         incorrect.append([word, call.data])
     if test_mode:
-        edit_markup.add(InlineKeyboardButton(f'{call.data}🚦', callback_data='_NO-DATA'))
-    await call.message.edit_reply_markup(reply_markup=edit_markup)
+        edit_markup.add(InlineKeyboardButton(text=f'{call.data}🚦', callback_data='_NO-DATA'))
+    await call.message.edit_reply_markup(reply_markup=edit_markup.as_markup())
     total += 1
     pos += 1
 
     await state.update_data(
         {'words': words, 'pos': pos, 'total': total, 'correct': correct, 'incorrect': incorrect,
          'msgs_to_delete': msgs_to_delete})
+    await call.answer()
     if pos == amount_of_words:
-        await state_Orthoepy_main(call.message, state, call)
+        await state_Orthoepy_main(call.message, state, bot, call)
         return
 
     gls = [letter.lower() for letter in words[pos] if letter.lower() in db.gl]
     gls_markup = await orthoepy_word_markup(gls)
-    msg = await call.message.answer(await orthoepy_word_formatting(words, pos, amount_of_words), parse_mode=ParseMode.HTML,
+    msg = await call.message.answer(await orthoepy_word_formatting(words, pos, amount_of_words),
+                                    parse_mode=ParseMode.HTML,
                                     reply_markup=gls_markup)
     if 'show_answers' in data:
         if data['show_answers']:
             await call.message.answer(words[pos])
     msgs_to_delete.append(msg.message_id)
+    await call.answer()
 
 
-@dp.message_handler(state=Test.credentials)
+@dp.message(Test.credentials)
 async def state_Test_credentials(message: Message, state: FSMContext):
     with open('test_settings.txt') as f:
         settings = {}
@@ -341,30 +350,30 @@ async def state_Test_credentials(message: Message, state: FSMContext):
     await orthoepy(message, state, test_mode=settings)
 
 
-@dp.message_handler(commands=['mymarks'], state='*')
-async def mark_report(message: Message, state: FSMContext):
-    await cancel_state(state)
-    logpass = await sql.get_logpass(message.from_user.id)
-    if logpass is None:
-        await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
-                             parse_mode=ParseMode.HTML)
-        return
-    ns = await NetSchool(login=logpass['login'], password=logpass['password'])
-    all_marks = await ns.get_marks()
-    subjects = list(all_marks.keys())
-    markup = InlineKeyboardMarkup()
-    for subject in subjects:
-        marks = all_marks[subject]
-        string_marks = ''.join([str(m) for m in all_marks[subject]])
-        avg = round((sum(marks) / len(marks)), 2)
-        markup.add(InlineKeyboardButton(f'{subject} - {avg}', callback_data=string_marks))
+# @dp.message(Command('mymarks'))
+# async def mark_report(message: Message, state: FSMContext):
+#     await cancel_state(state)
+#     logpass = await sql.get_logpass(message.from_user.id)
+#     if logpass is None:
+#         await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
+#                              parse_mode=ParseMode.HTML)
+#         return
+#     ns = await NetSchool(login=logpass['login'], password=logpass['password'])
+#     all_marks = await ns.get_marks()
+#     subjects = list(all_marks.keys())
+#     markup = InlineKeyboardBuilder()
+#     for subject in subjects:
+#         marks = all_marks[subject]
+#         string_marks = ''.join([str(m) for m in all_marks[subject]])
+#         avg = round((sum(marks) / len(marks)), 2)
+#         markup.add(InlineKeyboardButton(text=f'{subject} - {avg}', callback_data=string_marks))
+#
+#     await message.answer('Оценки: ', reply_markup=markup.as_markup())
+#
+#     await message.delete()
 
-    await message.answer('Оценки: ', reply_markup=markup)
 
-    await message.delete()
-
-
-@dp.message_handler(filters.Text(startswith=['2', '3', '4', '5']), state='*')
+@dp.message(F.text.startswith(('2', '3', '4', '5')))
 async def average_mark(message: Message, state: FSMContext, amount_of_digits_after_comma=2,
                        is_undefined_symbols=True):
     text_of_marks = message.text.replace(' ', '')
@@ -379,10 +388,10 @@ async def average_mark(message: Message, state: FSMContext, amount_of_digits_aft
     await state.update_data(marks=list_of_marks)
 
     average = round(sum(list_of_marks) / len(list_of_marks), amount_of_digits_after_comma)
-    better_mark_markup = types.InlineKeyboardMarkup()
-    to_5 = types.InlineKeyboardButton('Хочу 5', callback_data='want_5')
-    to_4 = types.InlineKeyboardButton('Хочу 4', callback_data='want_4')
-    to_3 = types.InlineKeyboardButton('Хочу 3', callback_data='want_3')
+    better_mark_markup = InlineKeyboardBuilder()
+    to_5 = types.InlineKeyboardButton(text='Хочу 5', callback_data='want_5')
+    to_4 = types.InlineKeyboardButton(text='Хочу 4', callback_data='want_4')
+    to_3 = types.InlineKeyboardButton(text='Хочу 3', callback_data='want_3')
     if average < 4.6:
         better_mark_markup.add(to_5)
     if average < 3.6:
@@ -391,17 +400,17 @@ async def average_mark(message: Message, state: FSMContext, amount_of_digits_aft
         better_mark_markup.add(to_3)
 
     await message.answer(f'Средний балл = <b>{str(average)}</b>', parse_mode=ParseMode.HTML,
-                         reply_markup=better_mark_markup)
+                         reply_markup=better_mark_markup.as_markup())
     if is_undefined_symbols:
         if len(list_of_undefined_symbols) > 0:
             await message.answer(
                 f'Неизвестные символы, которые не учитывались: <code>{list_of_undefined_symbols}</code>',
                 parse_mode=ParseMode.HTML)
     if average < 4.6:
-        await Marks.continue_.set()
+        await state.set_state(Marks.continue_)
 
 
-@dp.callback_query_handler(state=Marks.continue_)
+@dp.callback_query(Marks.continue_)
 async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
     fives = 0
     fours = 0
@@ -447,39 +456,40 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
     else:
         await cancel_state(state)
         await callback(call, state)
+    await call.answer()
 
 
-@dp.message_handler(commands=['gs', 'ds'], state='*', is_admin=True)
+@dp.message(IsAdmin(), Command('gs', 'ds'))
 async def OptionState(message: Message, state: FSMContext):
     state_ = await state.get_state()
     if state_ is not None:
         if message.text.lower() == '/gs':
             await message.answer(hcode(state_), parse_mode=ParseMode.HTML)
         elif message.text.lower() == '/ds':
-            await state.finish()
+            await state.clear()
             await message.answer(f'{hcode(state_)} удален', parse_mode=ParseMode.HTML)
     else:
         await message.answer('no state')
 
 
-@dp.message_handler(commands=['bind'], state='*')
+@dp.message(Command('bind'))
 async def bind(message: Message, state: FSMContext):
     await cancel_state(state)
 
-    source_markup = InlineKeyboardMarkup()
+    source_markup = InlineKeyboardBuilder()
     for gdz_source in db.available_gdzs.values():
-        source_markup.row(InlineKeyboardButton(gdz_source, callback_data=gdz_source))
-    source_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+        source_markup.row(InlineKeyboardButton(text=gdz_source, callback_data=gdz_source))
+    source_markup.row(InlineKeyboardButton(text='Отмена', callback_data='cancel'))
 
-    await message.answer('Выберите источник ГДЗ:', reply_markup=source_markup)
+    await message.answer('Выберите источник ГДЗ:', reply_markup=source_markup.as_markup())
 
     await message.delete()
 
-    await Bind.picked_source.set()
+    await state.set_state(Bind.picked_source)
 
 
-@dp.message_handler(commands='test_settings', state='*', is_admin=True)
-async def orthoepy_test_settings(message: Message, state: FSMContext):
+@dp.message(IsAdmin(), Command('test_settings'))
+async def orthoepy_test_settings(message: Message, state: FSMContext, command: CommandObject):
     params = message.text.split(' ')
     if len(params) < 2:
         await message.answer('Неправильное количество параметров!')
@@ -499,21 +509,20 @@ async def orthoepy_test_settings(message: Message, state: FSMContext):
     await message.answer('Done!')
 
 
-@dp.message_handler(commands='test', state='*')
+@dp.message(Command('test'))
 async def orthoepy_test(message: Message, state: FSMContext):
     await cancel_state(state)
     params = message.text.split(' ')
 
-
     await message.answer('<b>Введите свои данные</b> (<i>например:</i> <code>Иванов А, 11Б</code>): ',
                          parse_mode=ParseMode.HTML)
-    await Test.credentials.set()
+    await state.set_state(Test.credentials)
     if len(params) == 2:
         if params[1] == 'ans!':
             await state.update_data({'show_answers': True})
 
 
-@dp.message_handler(commands='orthoepy', state='*')
+@dp.message(Command('orthoepy'))
 async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict = False):
     if test_mode is False:
         await cancel_state(state)
@@ -529,12 +538,13 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
 
     rules = await message.answer('<b>Выберите гласную на которую падает ударение.</b>',
                                  reply_markup=await reply_cancel_markup(), parse_mode=ParseMode.HTML)
-    msg = await message.answer(await orthoepy_word_formatting(words, 0, amount_of_words), reply_markup=await orthoepy_word_markup(gls),
+    msg = await message.answer(await orthoepy_word_formatting(words, 0, amount_of_words),
+                               reply_markup=await orthoepy_word_markup(gls),
                                parse_mode=ParseMode.HTML)
 
     await message.delete()
 
-    await Orthoepy.main.set()
+    await state.set_state(Orthoepy.main)
     data = await state.get_data()
     if 'show_answers' in data:
         if data['show_answers']:
@@ -547,7 +557,7 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
         await state.update_data({'test_mode': True})
 
 
-@dp.message_handler(commands='ostats', state='*')
+@dp.message(Command('ostats'))
 async def orthoepy_statistics(message: Message, state: FSMContext):
     await cancel_state(state)
     max = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else 10
@@ -563,53 +573,59 @@ async def orthoepy_statistics(message: Message, state: FSMContext):
     await message.delete()
 
 
-@dp.callback_query_handler(state=Bind.picked_source)
+@dp.callback_query(Bind.picked_source)
 async def state_Bind_picked_source(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        return
 
     await state.update_data({'source': call.data})
 
-    grade_markup = InlineKeyboardMarkup()
+    grade_markup = InlineKeyboardBuilder()
     for grade in range(1, 12):
         grade = str(grade)
-        grade_markup.add(InlineKeyboardButton(grade, callback_data=grade))
-    grade_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+        grade_markup.add(InlineKeyboardButton(text=grade, callback_data=grade))
+    # grade_markup.row(InlineKeyboardButton(text='Отмена', callback_data='cancel'))
 
     await call.message.edit_text('Выберите класс: ')
-    await call.message.edit_reply_markup(reply_markup=grade_markup)
+    await call.message.edit_reply_markup(reply_markup=grade_markup.as_markup())
 
-    await Bind.picked_grade.set()
+    await state.set_state(Bind.picked_grade)
+    await call.answer()
 
 
-@dp.callback_query_handler(state=Bind.picked_grade)
+@dp.callback_query(Bind.picked_grade)
 async def state_Bind_picked_grade(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        return
 
     await state.update_data({'grade': call.data})
 
-    subjects_markup = InlineKeyboardMarkup()
+    subjects_markup = InlineKeyboardBuilder()
     subjects = (await (ModernGDZ(call.from_user.id).GdzPutinaFun()).get_subjects())[f'klass-{call.data}'].keys()
     for subject in subjects:
-        subjects_markup.add(InlineKeyboardButton(subject, callback_data=subject))
-    subjects_markup.row(InlineKeyboardButton('Отмена', callback_data='cancel'))
+        subjects_markup.add(InlineKeyboardButton(text=subject, callback_data=subject))
+    subjects_markup.adjust(2)
+    # subjects_markup.row(InlineKeyboardButton(text='Отмена', callback_data='cancel'))
 
     msg = await call.message.edit_text('Выберите предмет: ')
-    await call.message.edit_reply_markup(reply_markup=subjects_markup)
+    await call.message.edit_reply_markup(reply_markup=subjects_markup.as_markup())
 
-    await state.update_data({'msgs_to_delete': [msg.message_id]})
+    # await state.update_data({'msgs_to_delete': [msg.message_id]})
 
-    await Bind.picked_subject.set()
+    await state.set_state(Bind.picked_subject)
+    await call.answer()
 
 
-@dp.callback_query_handler(state=Bind.picked_subject)
+@dp.callback_query(Bind.picked_subject)
 async def state_Bind_picked_subject(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        return
     state_data = await state.get_data()
     await state.update_data({'subject': call.data})
 
@@ -621,25 +637,26 @@ async def state_Bind_picked_subject(call: CallbackQuery, state: FSMContext):
     books_data = await sgdz.get_books(subject_url)
     await state.update_data({'books_data': books_data})
 
-    msgs_to_delete = state_data['msgs_to_delete']
+    msgs_to_delete = []
     await call.message.delete()
 
     for i in range(0, len(books_data)):
         try:
-            bmarkup = InlineKeyboardMarkup().add(InlineKeyboardButton('Выбрать', callback_data=str(i)))
+            bmarkup = InlineKeyboardBuilder().add(InlineKeyboardButton(text='Выбрать', callback_data=str(i)))
             msg = await call.message.answer_photo(books_data[i]["img_url"],
                                                   caption=f'<b>{i + 1} / {len(books_data)}</b>. <a href="{books_data[i]["book_url"]}">{books_data[i]["img_title"]}</a>\n<code>{books_data[i]["author"]}</code>',
-                                                  parse_mode=ParseMode.HTML, reply_markup=bmarkup,
+                                                  parse_mode=ParseMode.HTML, reply_markup=bmarkup.as_markup(),
                                                   disable_notification=True)
             msgs_to_delete.append(msg.message_id)
         except:
             print(books_data[i])
     await state.update_data({'msgs_to_delete': msgs_to_delete})
-    await Bind.picked_book.set()
+    await state.set_state(Bind.picked_book)
+    await call.answer()
 
 
-@dp.callback_query_handler(state=Bind.picked_book)
-async def state_Bind_picked_book(call: CallbackQuery, state: FSMContext):
+@dp.callback_query(Bind.picked_book)
+async def state_Bind_picked_book(call: CallbackQuery, state: FSMContext, bot: Bot):
     state_data = await state.get_data()
     await state.update_data({'book_url': state_data['books_data'][int(call.data)]['book_url']})
 
@@ -649,13 +666,22 @@ async def state_Bind_picked_book(call: CallbackQuery, state: FSMContext):
         parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
 
     msgs_to_delete = state_data['msgs_to_delete']
-    msgs_to_delete.append(msg.message_id)
-    await state.update_data({'msgs_to_delete': msgs_to_delete})
+    for msg_ in msgs_to_delete:
+        await bot.delete_message(call.message.chat.id, msg_)
+    await state.update_data({'msgs_to_delete': [msg.message_id]})
 
-    await Bind.picked_alias.set()
+    await state.set_state(Bind.picked_alias)
+    await call.answer()
 
 
-@dp.message_handler(commands=['author'], state='*')
+@dp.message(Command('aliases'))
+async def aliases(message: Message):
+    aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
+    text = ', '.join(f'<a href="{html.quote(aliases_dict[i])}">{html.quote(i)}</a>' for i in aliases_dict.keys())
+    await message.answer(text)
+
+
+@dp.message(Command('author'))
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
                          f'\nИсходный код: {hlink("Github", "https://github.com/DarkWood312/StudyBot")}',
@@ -663,16 +689,16 @@ async def author(message: Message):
     await message.delete()
 
 
-# @dp.message_handler(commands=['docs', 'documents'], state='*')
+# @dp.message(Command('docs'))
 # async def documents(message: Message):
-#     inline_kb = types.InlineKeyboardMarkup()
+#     inline_kb = types.InlineKeyboardMarkupBuilder()
 #     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
 #     inline_kb.row(algm_button)
-#     await message.answer('Документы', reply_markup=inline_kb)
+#     await message.answer('Документы', reply_markup=inline_kb.as_markup())
 #     await message.delete()
 
 
-@dp.message_handler(content_types=types.ContentType.TEXT, state='*')
+@dp.message(F.text)
 async def other_messages(message: Message):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
@@ -684,18 +710,25 @@ async def other_messages(message: Message):
                                    False if await sql.get_data(message.from_user.id, 'upscaled') == True else True)
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
-            reply_markup=ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(emojize(
-                f'Сжатие - {":cross_mark:" if await sql.get_data(message.from_user.id, "upscaled") == 1 else ":check_mark_button:"}'))))
+            reply_markup=await menu_markup(message.from_user.id))
     elif 'закончить' in low:
         await message.delete()
         await main_message(message)
 
     else:
-        await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)  # ! TODO GDZ
-        # mgdz = ModernGDZ(message.from_user.id)
-        # aliases = await sql.get_data(message.from_user.id, 'aliases')
-        # if low in aliases:
-        #
+        # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
+        mgdz = ModernGDZ(message.from_user.id)
+        aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
+        args = low.split(' ')
+        # await message.answer(str(aliases))
+        if args[0] in aliases_dict:
+            destination_url = str(aliases_dict[args[0]])
+            imgs = await mgdz.GdzPutinaFun().gdz(destination_url, args[1])
+            inputs = [InputMediaPhoto(media=i) for i in imgs]
+            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{args[1]}</a>', media=inputs)
+            # await message.answer(str(imgs))
+            await message.answer_media_group(media_group.build())
+
 
     # *  gdz...
     # elif ('алгм' in low) or ('algm' in low):
@@ -779,7 +812,7 @@ async def other_messages(message: Message):
     #         await message.answer('Не найдено заданием с таким номером!')
 
 
-@dp.message_handler(content_types=types.ContentType.ANY, state='*', is_admin=True)
+@dp.message(IsAdmin())
 async def other_content_admin(message: Message):
     cp = message.content_type
     await message.answer(cp)
@@ -801,12 +834,12 @@ async def other_content_admin(message: Message):
         await message.answer('undefined content_type')
 
 
-@dp.message_handler(content_types=types.ContentType.ANY, state='*')
+@dp.message()
 async def other_content(message: Message):
     await message.answer('Я еще не настолько умный')
 
 
-@dp.callback_query_handler(state='*')
+@dp.callback_query()
 async def callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
@@ -819,5 +852,13 @@ async def callback(call: CallbackQuery, state: FSMContext):
         await average_mark(message=call.message, state=state)
 
 
+async def main():
+    # Initialize Bot instance with a default parse mode which will be passed to all API calls
+    bot = Bot(token, parse_mode=ParseMode.HTML)
+    # And the run events dispatching
+    await dp.start_polling(bot)
+
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    asyncio.run(main())
