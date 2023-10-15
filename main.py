@@ -576,6 +576,7 @@ async def state_Bind_picked_source(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        await call.answer()
         return
 
     await state.update_data({'source': call.data})
@@ -598,6 +599,7 @@ async def state_Bind_picked_grade(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        await call.answer()
         return
 
     await state.update_data({'grade': call.data})
@@ -623,6 +625,7 @@ async def state_Bind_picked_subject(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
         await call.message.delete()
+        await call.answer()
         return
     state_data = await state.get_data()
     await state.update_data({'subject': call.data})

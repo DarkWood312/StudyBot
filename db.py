@@ -14,9 +14,9 @@ gdz_help = f'''
 <b>Средний балл</b>:
 <i>Пример</i>: '<code>23525</code>' --> '<i>3.4</i>'
 '''
-gdz_help_non_gdz = f'''
+main_message = f'''
 <b>ГДЗ</b>:
-<i>...</i>
+/bind
 
 <b>Средний балл</b>:
 <i>Пример</i>: '<code>23525</code>' --> '<code>3.4</code>'
