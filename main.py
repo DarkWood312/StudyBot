@@ -20,8 +20,6 @@ from aiogram.utils.media_group import MediaGroupBuilder
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup
 # from netschool import NetSchool
 
-from pyshorteners import Shortener
-
 from defs import cancel_state, main_message, orthoepy_word_formatting
 from gdz import GDZ
 from modern_gdz import ModernGDZ
