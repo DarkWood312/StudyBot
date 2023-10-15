@@ -4,7 +4,7 @@ import io
 from aiogram import types
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from emoji import emojize

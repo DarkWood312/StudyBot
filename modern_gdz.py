@@ -1,7 +1,6 @@
 from difflib import get_close_matches
 
 import requests
-from aiogram import types
 from bs4 import BeautifulSoup
 
 from config import sql
