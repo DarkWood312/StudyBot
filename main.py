@@ -697,8 +697,8 @@ async def kit(message: Message, command: CommandObject):
     if command.args == '11':
         await message.delete()
         kit11 = {"алг": "https://gdz-putina.fun/klass-11/algebra/alimov", "анг": "https://gdz-putina.fun/klass-11/anglijskij-yazyk/spotlight-evans", "геом": "https://gdz-putina.fun/klass-11/geometriya/atanasyan"}
-        msg = await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
-        await message.answer('Готово!')
+        await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
+        msg = await message.answer('Готово!')
 
         await asyncio.sleep(3)
         await msg.delete()
