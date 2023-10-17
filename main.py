@@ -144,7 +144,6 @@ async def start_message(message: Message, state: FSMContext):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     await main_message(message)
-
     await message.delete()
 
 
@@ -712,13 +711,14 @@ async def author(message: Message):
     await message.delete()
 
 
-# @dp.message(Command('docs'))
-# async def documents(message: Message):
-#     inline_kb = types.InlineKeyboardMarkupBuilder()
-#     algm_button = types.InlineKeyboardButton('Мордкович Алгебра (2.6 MB)', callback_data='algm')
-#     inline_kb.row(algm_button)
-#     await message.answer('Документы', reply_markup=inline_kb.as_markup())
-#     await message.delete()
+@dp.message(Command('docs'))
+async def documents(message: Message):
+    inline_kb = InlineKeyboardBuilder()
+    algm_button = types.InlineKeyboardButton(text='Сборник Ершова.pdf (1.8 MB)', callback_data='docs_ershov')
+    inline_kb.add(algm_button)
+    inline_kb.adjust(2)
+    await message.answer('<b>Документы: </b>', reply_markup=inline_kb.as_markup())
+    await message.delete()
 
 
 @dp.message(F.text)
@@ -726,7 +726,7 @@ async def other_messages(message: Message):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     low = message.text.lower()
-    gdz = GDZ(message.from_user.id)
+    # gdz = GDZ(message.from_user.id)
 
     if 'сжатие' in low:
         await sql.change_data_type(message.from_user.id, 'upscaled',
@@ -741,16 +741,40 @@ async def other_messages(message: Message):
     else:
         # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
         mgdz = ModernGDZ(message.from_user.id)
+        gdzput = mgdz.GdzPutinaFun()
         aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
         args = low.split(' ')
         # await message.answer(str(aliases))
+        # await message.answer(str(args))
         if args[0] in aliases_dict:
-            destination_url = str(aliases_dict[args[0]])
-            imgs = await mgdz.GdzPutinaFun().gdz(destination_url, args[1])
-            inputs = [InputMediaPhoto(media=i) for i in imgs]
-            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{args[1]}</a>', media=inputs)
-            # await message.answer(str(imgs))
-            await message.answer_media_group(media_group.build())
+            try:
+                destination_url = str(aliases_dict[args[0]])
+                task_groups = await gdzput.get_task_groups(destination_url)
+                if args[0] in aliases_dict:
+                    if len(args) < 2:
+                        err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} 100</code> <i>(номер задания)</i>'
+                        if len(task_groups) > 1:
+                            err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys())))
+                        await message.answer(err1)
+                        return
+                if len(task_groups) == 1:
+                    imgs = await gdzput.gdz(destination_url, args[1])
+                else:
+                    if len(args) < 3:
+                        await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
+                        return
+                    # await message.answer(str(list(task_groups.keys())))
+                    imgs = await gdzput.gdz(destination_url, args[1], list(task_groups.keys())[int(args[2])-1])
+                inputs = [InputMediaPhoto(media=i) for i in imgs]
+                inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
+                for input_ in inputs:
+                    media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{args[1]}</a>', media=input_)
+                    await message.answer_media_group(media_group.build())
+            except TypeError as e:
+                await message.answer('Номер не найден!')
+                print(e)
+            except Exception as e:
+                print(e)
 
     # *  gdz...
     # elif ('алгм' in low) or ('algm' in low):
@@ -878,6 +902,10 @@ async def callback(call: CallbackQuery, state: FSMContext):
         al_text = await command_alias(call.from_user.id)
         await call.message.edit_text(f'<b>Список alias\'ов:\nНажать для удаления.</b>\n{al_text[0]}',
                                      reply_markup=al_text[1].as_markup(), disable_web_page_preview=True)
+    elif call.data.startswith('docs_'):
+        param = call.data.replace('docs_', '')
+
+        await call.message.answer_document(db.doc_ids[param])
 
     # elif call.data == 'algm':
     #     await call.message.answer_document(db.doc_ids['algm'])

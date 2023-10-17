@@ -1,5 +1,6 @@
 from difflib import get_close_matches
 
+import typing
 import requests
 from bs4 import BeautifulSoup
 
@@ -71,7 +72,7 @@ class ModernGDZ:
 
         async def get_books(self, url) -> list:
             r = requests.get(url, headers=headers)
-            books =BeautifulSoup(r.content, 'lxml').find(class_='box').find_all('a', class_='book')
+            books = BeautifulSoup(r.content, 'lxml').find(class_='box').find_all('a', class_='book')
             books_list = []
 
             for book in books:
@@ -80,7 +81,8 @@ class ModernGDZ:
                 img_title = img_content.get('alt')
                 book_url_without_main = book.get('href')
                 book_url = self.main_url + book_url_without_main
-                authors = ': '.join([a.strip() for a in book.find(class_='authors-in-category').getText().split(':', 1)])
+                authors = ': '.join(
+                    [a.strip() for a in book.find(class_='authors-in-category').getText().split(':', 1)])
                 book_dict = {
                     'img_url': img_url,
                     'img_title': img_title,
@@ -94,16 +96,42 @@ class ModernGDZ:
 
             return books_list
 
-        async def gdz(self, url, num) -> list:
-            main_content = requests.get(url, headers=headers)
-            task_call = BeautifulSoup(main_content.content, 'lxml').find('div', class_='tasks').find('ul', class_='structure').find(class_='structure-item').find('a').get('href').replace('#task?t=', '')[1:]
-            modified_url = url.replace('https://gdz-putina.fun/', 'https://gdz-putina.fun/json/') + f'/{num}{task_call}'
+        async def get_task_groups(self, book_url: str) -> typing.Dict[str, typing.Dict[str, str]]:
+            main_content = requests.get(book_url, headers=headers)
+            tasks = BeautifulSoup(main_content.content, 'lxml').find(class_='tasks')
+            task_groups = {}
+            for t in tasks.find_all('div'):
+                if t.get('id') is None:
+                    ul = t.find('ul', class_='structure')
+                    li_dict = {}
+                    for li in ul.find_all('li', class_='structure-item'):
+                        li = li.find('a')
+                        n = li.getText().strip()
+                        nb = ''
+                        if not n.isdigit() and n[0].isdigit():
+                            for char in n:
+                                if not char.isdigit():
+                                    break
+                                nb += char.lower()
+                        else:
+                            nb = n.lower()
+                        li_dict[nb] = li.get('href')
+                    task_groups[t.find(class_='titleHead').getText().strip()] = li_dict
+            return task_groups
+
+        async def gdz(self, url, num, task_group: str | None = None) -> list[typing.List[str]]:
+            task_groups = await self.get_task_groups(url)
+            if task_group is None or len(task_groups) == 1:
+                task_groups = list(task_groups.values())[0]
+            else:
+                task_groups = task_groups[task_group]
+            modified_url = f'{url.replace("https://gdz-putina.fun/", "https://gdz-putina.fun/json/")}{task_groups[str(num)].replace("#task?t=", "/")}'
             r = requests.get(modified_url, headers=headers)
-            editions = r.json()['editions']
             data = []
+
+            editions = r.json()['editions']
             for edition in editions:
                 for image in edition['images']:
                     data.append(image['url'])
             imgs = [self.main_url + img_url for img_url in data]
-            # return [imgs, url] url is json
             return imgs
