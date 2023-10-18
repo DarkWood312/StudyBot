@@ -62,7 +62,8 @@ video_note_answers = {
 }
 
 doc_ids = {
-    'ershov': 'BQACAgIAAxkBAAIj12UuzbR6BbCNGizyrOiG_7ol7gKCAALePAAChDp5SVkVF2PQSBRJMAQ'
+    'ershov': 'BQACAgIAAxkBAAIj12UuzbR6BbCNGizyrOiG_7ol7gKCAALePAAChDp5SVkVF2PQSBRJMAQ',
+    'ershovg': 'BQACAgIAAxkBAAIkSmUvXPw06acIoFdKhmPeew-DanSeAAJYMwAChDqBSWj7BrAM1XnmMAQ'
 }
 
 gl = ["у", "е", 'ё', "ы", "а", "о", "э", "я", "и", "ю"]

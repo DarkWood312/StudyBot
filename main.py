@@ -714,8 +714,9 @@ async def author(message: Message):
 @dp.message(Command('docs'))
 async def documents(message: Message):
     inline_kb = InlineKeyboardBuilder()
-    algm_button = types.InlineKeyboardButton(text='Сборник Ершова.pdf (1.8 MB)', callback_data='docs_ershov')
-    inline_kb.add(algm_button)
+    ershov_button = InlineKeyboardButton(text='Сборник Ершова.pdf (1.8 MB)', callback_data='docs_ershov')
+    ershovg_button = InlineKeyboardButton(text='Сборник Ершова Геометрия.pdf (10.8 MB)', callback_data='docs_ershovg')
+    inline_kb.add(ershov_button, ershovg_button)
     inline_kb.adjust(2)
     await message.answer('<b>Документы: </b>', reply_markup=inline_kb.as_markup())
     await message.delete()
