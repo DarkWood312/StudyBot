@@ -8,7 +8,7 @@ from config import sql
 
 
 async def menu_markup(user_id):
-    button = KeyboardButton(text=emojize(f'Сжатие - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
+    button = KeyboardButton(text=emojize(f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
     markup = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[button]])
     return markup
 

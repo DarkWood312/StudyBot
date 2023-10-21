@@ -119,7 +119,7 @@ class ModernGDZ:
                     task_groups[t.find(class_='titleHead').getText().strip()] = li_dict
             return task_groups
 
-        async def gdz(self, url, num, task_group: str | None = None) -> list[typing.List[str]]:
+        async def gdz(self, url, num, task_group: str | None = None) -> typing.List[str]:
             task_groups = await self.get_task_groups(url)
             if task_group is None or len(task_groups) == 1:
                 task_groups = list(task_groups.values())[0]

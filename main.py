@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto
+    CallbackQuery, InputMediaPhoto, InputMediaDocument
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink, hide_link
 from aiogram.utils.media_group import MediaGroupBuilder
@@ -123,7 +123,7 @@ async def state_SendMessage_message(message: types.Message, state: FSMContext):
 @dp.callback_query(SendMessage.message)
 async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'stop_monolog':
-        await state.clear()
+        await cancel_state(state)
         await call.message.answer('Готово.')
         await call.answer()
 
@@ -233,7 +233,7 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, cal
         if not test_mode:
             for m in msgs_to_delete:
                 await bot.delete_message(message.chat.id, m)
-        await state.clear()
+        await cancel_state(state)
 
         if test_mode:
             await bot.send_message(test_settings['receiver'], text_teacher, parse_mode=ParseMode.HTML)
@@ -714,8 +714,8 @@ async def author(message: Message):
 @dp.message(Command('docs'))
 async def documents(message: Message):
     inline_kb = InlineKeyboardBuilder()
-    ershov_button = InlineKeyboardButton(text='Сборник Ершова.pdf (1.8 MB)', callback_data='docs_ershov')
-    ershovg_button = InlineKeyboardButton(text='Сборник Ершова Геометрия.pdf (10.8 MB)', callback_data='docs_ershovg')
+    ershov_button = InlineKeyboardButton(text='Сборник Ершова.pdf', callback_data='docs_ershov')
+    ershovg_button = InlineKeyboardButton(text='Сборник Ершова Геометрия.pdf', callback_data='docs_ershovg')
     yashenko_matem_button = InlineKeyboardButton(text='Ященко (Математика ЕГЭ) 2024 36 вариантов.pdf', callback_data='docs_yashenkomatem')
     inline_kb.add(ershov_button, ershovg_button, yashenko_matem_button)
     inline_kb.adjust(1)
@@ -742,13 +742,22 @@ async def other_messages(message: Message):
 
     else:
         # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
-        mgdz = ModernGDZ(message.from_user.id)
-        gdzput = mgdz.GdzPutinaFun()
         aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
         args = low.split(' ')
         # await message.answer(str(aliases))
         # await message.answer(str(args))
         if args[0] in aliases_dict:
+            var = args[1]
+            if '-' in var:
+                f, s = var.split('-')
+                vars_list = [*range(int(f.strip()), int(s.strip()) + 1)]
+            elif ',' in var:
+                vars_list = var.split(',')
+                vars_list = list(dict.fromkeys([int(i.strip()) for i in vars_list]))
+            else:
+                vars_list = [var]
+            mgdz = ModernGDZ(message.from_user.id)
+            gdzput = mgdz.GdzPutinaFun()
             try:
                 destination_url = str(aliases_dict[args[0]])
                 task_groups = await gdzput.get_task_groups(destination_url)
@@ -762,16 +771,20 @@ async def other_messages(message: Message):
                 if len(task_groups) == 1:
                     imgs = await gdzput.gdz(destination_url, args[1])
                 else:
-                    if len(args) < 3:
-                        await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
-                        return
+                    # if len(args) < 3:
+                    #     await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
+                    #     return
                     # await message.answer(str(list(task_groups.keys())))
-                    imgs = await gdzput.gdz(destination_url, args[1], list(task_groups.keys())[int(args[2])-1])
-                inputs = [InputMediaPhoto(media=i) for i in imgs]
-                inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
-                for input_ in inputs:
-                    media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{args[1]}</a>', media=input_)
-                    await message.answer_media_group(media_group.build())
+                    for v in vars_list:
+                        imgs = await gdzput.gdz(destination_url, v, list(task_groups.keys())[int(args[2])-1])
+                        if await sql.get_data(message.from_user.id, "upscaled") == 1:
+                            inputs = [InputMediaDocument(media=i) for i in imgs]
+                        else:
+                            inputs = [InputMediaPhoto(media=i) for i in imgs]
+                        inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
+                        for input_ in inputs:
+                            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{v}</a>', media=input_)
+                            await message.answer_media_group(media_group.build())
             except TypeError as e:
                 await message.answer('Номер не найден!')
                 print(e)

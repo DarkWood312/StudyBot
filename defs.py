@@ -1,7 +1,7 @@
 import _io
 import io
 
-from aiogram import types, html
+from aiogram import types, html, Bot
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
