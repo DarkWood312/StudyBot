@@ -747,29 +747,28 @@ async def other_messages(message: Message):
         # await message.answer(str(aliases))
         # await message.answer(str(args))
         if args[0] in aliases_dict:
-            var = args[1]
-            if '-' in var:
-                f, s = var.split('-')
-                vars_list = [*range(int(f.strip()), int(s.strip()) + 1)]
-            elif ',' in var:
-                vars_list = var.split(',')
-                vars_list = list(dict.fromkeys([int(i.strip()) for i in vars_list]))
-            else:
-                vars_list = [var]
+            if len(args) > 2:
+                var = args[1]
+                if '-' in var:
+                    f, s = var.split('-')
+                    vars_list = [*range(int(f.strip()), int(s.strip()) + 1)]
+                elif ',' in var:
+                    vars_list = var.split(',')
+                    vars_list = list(dict.fromkeys([int(i.strip()) for i in vars_list]))
+                else:
+                    vars_list = [var]
             mgdz = ModernGDZ(message.from_user.id)
             gdzput = mgdz.GdzPutinaFun()
             try:
                 destination_url = str(aliases_dict[args[0]])
                 task_groups = await gdzput.get_task_groups(destination_url)
-                if args[0] in aliases_dict:
-                    if len(args) < 2:
-                        err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} 100</code> <i>(номер задания)</i>'
-                        if len(task_groups) > 1:
-                            err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys())))
-                        await message.answer(err1)
-                        return
-                if len(task_groups) == 1:
-                    imgs = await gdzput.gdz(destination_url, args[1])
+                if len(args) < 3:
+                    err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} {args[1] if len(args) > 1 else "100"}</code> <i>(номер задания)</i>'
+                    err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys())))
+                    await message.answer(err1)
+                    return
+                # if len(task_groups) == 1:
+                #     imgs = await gdzput.gdz(destination_url, args[1])
                 else:
                     # if len(args) < 3:
                     #     await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
