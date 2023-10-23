@@ -246,12 +246,14 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, cal
         # * Randoms
         rand = random.randint(1, 100)
         total_floor = 10
-        if rand <= 5 and total > 0:
+        if rand <= 1.25 and total > 0:
             await message.answer_video_note(db.video_note_answers['nikita_lucky-1'])
-        elif 5 < rand <= 10 and total > 0:
+        elif 1.25 < rand <= 2.5 and total > 0:
             await message.answer_video_note(db.video_note_answers['nikita_lucky-2'])
-        elif 10 < rand <= 12:
+        elif 2.5 < rand <= 3.75 and total > 0:
             await message.answer_video_note(db.video_note_answers['nikita_lucky-3'])
+        elif 3.75 < rand <= 5 and total > 0:
+            await message.answer_video_note(db.video_note_answers['nikita_lucky-4'])
         elif percentage == 100 and total == 1:
             await message.answer_video_note(db.video_note_answers['nikita_fake_100-1'])
         elif percentage == 0 and total == 1:
