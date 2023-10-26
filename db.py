@@ -59,7 +59,8 @@ video_note_answers = {
     'nikita_lucky-3': 'DQACAgIAAxkBAAIPvGUoQKe657_oQqdNqib72YPiAYm-AAJKPAACMEI4SW67dGfocuGUMAQ',
     'nikita_lucky-4': 'DQACAgIAAxkBAAIl8GU1-K0ukJwjvEixEC4AAR8wLZ2BHAACwjgAAoe8sEkD50-Im7W4XjAE',
     'nikita_fake_100-1': 'DQACAgIAAxkBAAIMdWUlohiKJyYheN0zqsgSdUWidQplAALxPAACuqQwScEmvuyBeSdAMAQ',
-    'nikita_fake_100-2': 'DQACAgIAAxkBAAIMeGUlonMXzo6rB7kd96Gq1QvcgQOYAALzPAACuqQwSYoTCz6zebNnMAQ'
+    'nikita_fake_100-2': 'DQACAgIAAxkBAAIMeGUlonMXzo6rB7kd96Gq1QvcgQOYAALzPAACuqQwSYoTCz6zebNnMAQ',
+    'holid_100-1': 'DQACAgIAAxkBAAInAmU6fCdTbvxyTqqvnqQLDNufg5jHAAIFIwACx2tQSOBUK13yqjbyMAQ'
 }
 
 doc_ids = {

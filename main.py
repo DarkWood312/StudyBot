@@ -207,6 +207,7 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, cal
     data = await state.get_data()
     msgs_to_delete = data['msgs_to_delete']
     total = data['total']
+    words = data['words']
     incorrect = data['incorrect']
     correct = data['correct']
     test_mode = data['test_mode'] if 'test_mode' in data else False
@@ -275,6 +276,8 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, cal
             await message.answer_video_note(db.video_note_answers['nikita_high-1'])
         elif 100 > percentage >= 90 and total >= total_floor:
             await message.answer_video_note(db.video_note_answers['nikita_high-2'])
+        elif percentage == 100 and total >= len(words):
+            await message.answer_video_note(db.video_note_answers['holid_100-1'])
 
 
 @dp.callback_query(Orthoepy.main)
