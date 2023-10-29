@@ -746,8 +746,8 @@ async def other_messages(message: Message):
         await main_message(message)
 
     else:
-        if low == '3d3c2a6b':
-            await message.answer_photo('FID PHOTO HERE')
+        if low == 'd3c3a2b6':
+            await message.answer_photo('AgACAgIAAxkBAAInUmU-KpOzUGwTRILR4zDwNYY9XQqaAALMyzEb1UrwSbKNf9nf5Yf-AQADAgADcwADMAQ', caption='<a href="https://yandex.ru/maps/35/krasnodar/chain/tinkoff_bankomaty/197318150235/filter/chain_id/197318150235/?ll=38.975313%2C45.035470&sll=38.975313%2C45.035470&sspn=0.238266%2C0.101755&z=13">:)</a>', parse_mode=ParseMode.HTML)
         # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
         aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
         args = low.split(' ')
