@@ -746,6 +746,8 @@ async def other_messages(message: Message):
         await main_message(message)
 
     else:
+        if low == '3d3c2a6b':
+            await message.answer_photo('FID PHOTO HERE')
         # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
         aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
         args = low.split(' ')
