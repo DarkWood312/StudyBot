@@ -9,4 +9,4 @@ async-class==0.5.0
 asyncpg==0.28.0
 pymorphy3==1.2.1
 nltk==3.8.1
-wordcloud=1.9.2
+wordcloud==1.9.2
