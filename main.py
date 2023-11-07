@@ -5,6 +5,7 @@ import random
 import sys
 from random import shuffle
 
+import nltk
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, types, F, Router, html
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
@@ -12,7 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument
+    CallbackQuery, InputMediaPhoto, InputMediaDocument, InputFile, FSInputFile, BufferedInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink, hide_link
 from aiogram.utils.media_group import MediaGroupBuilder
@@ -22,7 +23,7 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 import copy
 
-from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias
+from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -66,6 +67,8 @@ class Test(StatesGroup):
 class Aliases(StatesGroup):
     main = State()
 
+class WordCloud(StatesGroup):
+    settings_input = State()
 
 class IsAdmin(Filter):
     def __init__(self, is_admin: bool = True) -> None:
@@ -143,6 +146,7 @@ async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
+    await sql.add_wordcloud_user(user_id=message.from_user.id)
     await main_message(message)
     await message.delete()
 
@@ -708,6 +712,35 @@ async def kit(message: Message, command: CommandObject):
         await msg.delete()
 
 
+@dp.message(Command('wordcloud_settings'))
+async def wordcloud_settings(message: Message, state: FSMContext):
+    await cancel_state(state)
+    await sql.add_wordcloud_user(user_id=message.from_user.id)
+    current_settings = await sql.get_wordcloud_settings(user_id=message.from_user.id)
+    settings_text = ''
+    for k, v in current_settings.items():
+        settings_text += f'{hbold(k)} - {hcode(v)}\n'
+    await message.answer(settings_text, parse_mode=ParseMode.HTML)
+    await message.answer('<b>Отправьте сообщение выше по образцу для изменения настроек.</b>\n<a href="https://kristendavis27.medium.com/wordcloud-style-guide-2f348a03a7f8">colormap list</a>', parse_mode=ParseMode.HTML)
+    await state.set_state(WordCloud.settings_input)
+
+
+@dp.message(WordCloud.settings_input)
+async def WordCloud_settings_input(message: Message, state: FSMContext):
+    text = message.text.lower()
+    # input_data = {}
+    for line in text.split('\n'):
+        k, v = line.split(' - ', 1)
+        if v == 'none':
+            await sql.change_data_type(message.from_user.id, k, 'NULL', 'wordcloud_settings')
+        elif isinstance(v, str):
+            await sql.change_data(message.from_user.id, k, v, 'wordcloud_settings')
+        else:
+            await sql.change_data_type(message.from_user.id, k, v, 'wordcloud_settings')
+    await message.answer('Успешно!')
+    await cancel_state(state)
+
+
 @dp.message(Command('author'))
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
@@ -732,6 +765,7 @@ async def documents(message: Message):
 async def other_messages(message: Message):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
+    await sql.add_wordcloud_user(user_id=message.from_user.id)
     low = message.text.lower()
     # gdz = GDZ(message.from_user.id)
 
@@ -744,11 +778,20 @@ async def other_messages(message: Message):
     elif 'закончить' in low:
         await message.delete()
         await main_message(message)
+    elif len(low) >= 50:
+        text_data = await text_analysis(message.text, user_id=message.from_user.id)
+        aow = text_data['amount_of_words']
+        aos = text_data['amount_of_sentences']
+        aoc = text_data['amount_of_chars']
+        aocws = text_data['amount_of_chars_without_space']
+        image = text_data['image']
+        answer_text = f'<b>Количество слов:</b> <code>{aow}</code>\n<b>Количество предложений:</b> <code>{aos}</code>\n<b>Количество символов:</b> <code>{aoc}</code> (<code>{aocws}</code> без пробелов)'
+        if image is not None:
+            await message.answer_photo(BufferedInputFile(image.getvalue(), filename='image.png'), caption=answer_text, parse_mode=ParseMode.HTML)
+        else:
+            await message.answer(answer_text, parse_mode=ParseMode.HTML)
 
     else:
-        if low == 'd3c3a2b6':
-            await message.answer_photo('AgACAgIAAxkBAAInUmU-KpOzUGwTRILR4zDwNYY9XQqaAALMyzEb1UrwSbKNf9nf5Yf-AQADAgADcwADMAQ', caption='<a href="https://yandex.ru/maps/35/krasnodar/chain/tinkoff_bankomaty/197318150235/filter/chain_id/197318150235/?ll=38.975313%2C45.035470&sll=38.975313%2C45.035470&sspn=0.238266%2C0.101755&z=13">:)</a>', parse_mode=ParseMode.HTML)
-        # await message.answer('<i>ГДЗ в разработке...</i>', parse_mode=ParseMode.HTML)
         aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
         args = low.split(' ')
         # await message.answer(str(aliases))
@@ -946,4 +989,6 @@ async def main():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    nltk.download('punkt')
+    nltk.download('stopwords')
     asyncio.run(main())

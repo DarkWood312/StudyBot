@@ -7,3 +7,6 @@ emoji==2.8.0
 python-dotenv==1.0.0
 async-class==0.5.0
 asyncpg==0.28.0
+pymorphy3==1.2.1
+nltk==3.8.1
+wordcloud=1.9.2
