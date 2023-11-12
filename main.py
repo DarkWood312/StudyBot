@@ -374,8 +374,10 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
     if 'закончить' in message.text.lower():
         for msg in data['msgs_to_delete']:
             await bot.delete_message(message.from_user.id, msg.message_id)
-        await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
+        finished = await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
         await cancel_state(state)
+        await asyncio.sleep(1)
+        await finished.delete()
         return
     args = message.text.split(' ')
     num = args[0]
