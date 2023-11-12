@@ -157,40 +157,6 @@ async def start_message(message: Message, state: FSMContext):
     await message.delete()
 
 
-# @dp.message(Command('login'))
-# async def login(message: Message, state: FSMContext):
-#     await cancel_state(state)
-#     current_logpass = await sql.get_logpass(message.from_user.id)
-#     if not current_logpass is None:
-#         await message.answer(f'Действующий аккаунт: <tg-spoiler><b>{current_logpass["login"]}</b> - <b>{current_logpass["password"]}</b></tg-spoiler>', parse_mode=ParseMode.HTML)
-#     await message.answer('Введите логин от <a href="https://sgo.rso23.ru/">Сетевого города</a>: ', parse_mode=ParseMode.HTML, reply_markup=await cancel_markup())
-#     await state.set_state(NetSchoolState.login)
-#
-#
-# @dp.message(NetSchoolState.login)
-# async def state_NetSchool_login(message: Message, state: FSMContext):
-#     log = message.text
-#     await state.update_data(log=log)
-#     await message.answer('Введите пароль: ')
-#     await state.set_state(NetSchoolState.password)
-#
-#
-# @dp.message(NetSchoolState.password)
-# async def state_NetSchool_password(message: Message, state: FSMContext):
-#     pass_ = message.text
-#     log = (await state.get_data())['log']
-#
-#     try:
-#         ns = await NetSchool(log, pass_)
-#         await ns.logout()
-#         await sql.change_data(message.from_user.id, 'netschool', f'{log}:::{pass_}')
-#         await message.answer('Успешно!')
-#         await cancel_state(state)
-#     except AuthError:
-#         await message.answer('Логин или пароль неверный!')
-#         await cancel_state(state)
-#         await login(message, state)
-
 @dp.message(Bind.picked_alias)
 async def state_Bind_picked_alias(message: Message, state: FSMContext, bot: Bot):
     await state.update_data({'alias': message.text.split(' ')[0].lower()})
@@ -435,55 +401,6 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
         return
     text = bytes(fr'{hcode(num)}\u208' + fr'\u208'.join([*str(from_base)]) + fr' --> {hcode(conv)}\u208' + r'\u208'.join([*str(to_base)]), 'utf-8').decode('unicode_escape')
     await message.answer(text, parse_mode=ParseMode.HTML)
-
-
-# @dp.message(BaseConverter.num)
-# async def BaseConverter_num(message: Message, state: FSMContext):
-#     markup = InlineKeyboardBuilder()
-#     markup.add(InlineKeyboardButton(text='ИЗ основания 10', callback_data='from_base'))
-#     markup.add(InlineKeyboardButton(text='В основание 2', callback_data='to_base'))
-#
-#     conv = await num_base_converter(message.text.lower(), 2)
-#     main_msg = await message.answer(hcode(message.text) + u'\u2081\u2080 --> ' + hcode(str(conv)) + u'\u2082',
-#                                     reply_markup=markup.as_markup())
-#     await state.update_data(
-#         {'num': message.text.lower(), 'markup': markup, 'from_base': 10, 'to_base': 2, 'main_msg': main_msg})
-#
-#     await message.delete()
-#
-#
-# @dp.callback_query(BaseConverter.num)
-# async def BaseConverter_num_callback(call: CallbackQuery, state: FSMContext):
-#     to_del = await call.message.answer('Введите основание СС')
-#     await state.update_data({'type': call.data, 'msg_to_del': to_del})
-#     await state.set_state(BaseConverter.base)
-#
-#     await call.answer()
-#
-#
-# @dp.message(BaseConverter.base)
-# async def BaseConverter_base(message: Message, state: FSMContext, bot: Bot):
-#     data = await state.get_data()
-#     if not message.text.isdigit():
-#         await message.answer('Основание СС должно быть записано числом!')
-#     await state.update_data({data['type']: int(message.text)})
-#     conv = await num_base_converter(data['num'], data['to_base'], data['from_base'])
-#     text = bytes(
-#         fr'{data["num"]}\u208' + fr'\u208'.join([*str(data['from_base'])]) + fr' --> {conv}\u208' + r'\u208'.join(
-#             [*str(data['to_base'])]), 'utf-8').decode('unicode_escape')
-#
-#     markup = InlineKeyboardBuilder()
-#     markup.add(InlineKeyboardButton(text=f'ИЗ основания {data["from_base"]}', callback_data='from_base'))
-#     markup.add(InlineKeyboardButton(text=f'В основание {data["to_base"]}', callback_data='to_base'))
-#
-#     # await data['main_msg'].edit_text(str(text), parse_mode=ParseMode.HTML)
-#     await bot.edit_message_text(data['main_msg'].message_id, text)
-#     # await data['main_msg'].edit_reply_markup(markup.as_markup())
-#
-#     await state.set_state(BaseConverter.num)
-#
-#     await message.delete()
-#     # await data['to_del'].delete()
 
 
 @dp.message(F.text.startswith(('2', '3', '4', '5')))
@@ -950,87 +867,6 @@ async def other_messages(message: Message):
                 print(e)
             except Exception as e:
                 print(e)
-
-    # *  gdz...
-    # elif ('алгм' in low) or ('algm' in low):
-    #     try:
-    #         subject, paragaph, num = low.split(' ', 2)
-    #         paragaph = int(paragaph)
-    #         await gdz_sender(num, gdz.algm_pomogalka, message, 'Алгебра Мордкович', paragaph)
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено задания с таким номером!')
-    #
-    # elif ('алг' in low) or ('alg' in low):
-    #     try:
-    #         subject, var = low.split(' ', 1)
-    #         await gdz_sender(var, gdz.alg_megaresheba, message, 'Алгебра')
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено задания с таким номером!')
-    #
-    # elif ('гео' in low) or ('geo' in low):
-    #     try:
-    #         subject, var = low.split(' ', 1)
-    #         await gdz_sender(var, gdz.geom_megaresheba, message, 'Геометрия')
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено задания с таким номером!')
-    #
-    # elif ('физ' in low) or ('phiz' in low):
-    #     try:
-    #         subject, var = low.split(' ', 1)
-    #         await gdz_sender(var, gdz.phiz_megaresheba, message, 'Физика')
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено задания с таким номером')
-    #
-    # elif ('анг' in low) or ('ang' in low):
-    #     try:
-    #         subject, page = low.split(' ', 1)
-    #         await gdz_sender(page, gdz.ang_megaresheba, message, 'Английский')
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except ConnectionError:
-    #         await message.answer('Не найдено страницы с таким номером!')
-    #     except exceptions.URLHostIsEmpty:
-    #         await message.answer(emojize('На сайте нет этого номера:sad_but_relieved_face:'))
-    #
-    # elif ('хим' in low) or ('him' in low):
-    #     try:
-    #         subject, tem, work, var = low.split(' ', 3)
-    #         tem = int(tem)
-    #         work = int(work)
-    #         await gdz_sender(var, gdz.him_putin, message, 'Химия', tem, work)
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено заданием с таким номером!')
-    #
-    # elif ('инф' in low) or ('inf' in low):
-    #     try:
-    #         subject, task, num = low.split(' ', 2)
-    #         await gdz_sender(num, gdz.inf_kpolyakova, message, 'Информатика Полякова', task)
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено заданием с таким номером!')
-    #
-    #
-    # elif ('кист' in low) or ('kist' in low):
-    #     try:
-    #         subject, page = low.split(' ', 1)
-    #         page = int(page)
-    #         response = await gdz.kist(page)
-    #         await message.answer_photo(response)
-    #     except ValueError:
-    #         await message.answer('Некорректное число!')
-    #     except:
-    #         await message.answer('Не найдено заданием с таким номером!')
 
 
 @dp.message(IsAdmin())
