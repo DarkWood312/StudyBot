@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import random
 import sys
@@ -18,12 +17,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink, hide_link
 from aiogram.utils.media_group import MediaGroupBuilder
 
+from exceptions import NumDontExistError, BaseDontExistError
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup
 # from netschool import NetSchool
 
-import copy
 
-from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis
+from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis, num_base_converter
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -67,8 +66,15 @@ class Test(StatesGroup):
 class Aliases(StatesGroup):
     main = State()
 
+
 class WordCloud(StatesGroup):
     settings_input = State()
+
+
+class BaseConverter(StatesGroup):
+    num = State()
+    base = State()
+
 
 class IsAdmin(Filter):
     def __init__(self, is_admin: bool = True) -> None:
@@ -383,6 +389,101 @@ async def state_Test_credentials(message: Message, state: FSMContext):
 #     await message.answer('Оценки: ', reply_markup=markup.as_markup())
 #
 #     await message.delete()
+
+@dp.message(Command('base_converter'))
+async def base_converter(message: Message, state: FSMContext):
+    await cancel_state(state)
+    await state.set_state(BaseConverter.num)
+    guide1_msg = await message.answer('Напишите значение и основание:\n', reply_markup=await reply_cancel_markup())
+    guide_text = f'<b>Формат:</b> {html.quote("<значение> <к основанию> (тогда основание СС <значение> считается 10) ИЛИ <значение> <из основания> <к основанию>")} \n<b>Пример</b>: <code>60 2</code> ==> <i>60\u2081\u2080 --> 111100\u2082</i>\n<code>111100 2 10</code> ==> <i>111100\u2082 --> 60\u2081\u2080</i>'
+    guide_msg = await message.answer(guide_text, parse_mode=ParseMode.HTML)
+    await state.update_data({'guide_text': guide_text, 'msgs_to_delete': [guide1_msg, guide_msg]})
+    await message.delete()
+
+
+@dp.message(BaseConverter.num)
+async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
+    await message.delete()
+    data = await state.get_data()
+    if 'закончить' in message.text.lower():
+        for msg in data['msgs_to_delete']:
+            await bot.delete_message(message.from_user.id, msg.message_id)
+        await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
+        await cancel_state(state)
+        return
+    args = message.text.split(' ')
+    num = args[0]
+    if len(args) == 2:
+        to_base = args[1]
+        from_base = 10
+    elif len(args) == 3:
+        to_base = args[2]
+        from_base = args[1]
+    else:
+        guide_text = await message.answer(data['guide_text'])
+        msgs_to_delete = data['msgs_to_delete']
+        msgs_to_delete.append(guide_text)
+        await state.update_data({'msgs_to_delete': msgs_to_delete})
+        return
+    try:
+        conv = await num_base_converter(num, int(to_base), int(from_base))
+    except NumDontExistError as e:
+        await message.answer(f"<b>Ошибка</b>: Значениe '<code>{e.args[1]}</code>' не существуют в СС с основанием '<code>{e.args[2]}</code>'", parse_mode=ParseMode.HTML)
+        return
+    except BaseDontExistError:
+        await message.answer('<b>Ошибка</b>: СС с основанием > <code>36</code>', parse_mode=ParseMode.HTML)
+        return
+    text = bytes(fr'{hcode(num)}\u208' + fr'\u208'.join([*str(from_base)]) + fr' --> {hcode(conv)}\u208' + r'\u208'.join([*str(to_base)]), 'utf-8').decode('unicode_escape')
+    await message.answer(text, parse_mode=ParseMode.HTML)
+
+
+# @dp.message(BaseConverter.num)
+# async def BaseConverter_num(message: Message, state: FSMContext):
+#     markup = InlineKeyboardBuilder()
+#     markup.add(InlineKeyboardButton(text='ИЗ основания 10', callback_data='from_base'))
+#     markup.add(InlineKeyboardButton(text='В основание 2', callback_data='to_base'))
+#
+#     conv = await num_base_converter(message.text.lower(), 2)
+#     main_msg = await message.answer(hcode(message.text) + u'\u2081\u2080 --> ' + hcode(str(conv)) + u'\u2082',
+#                                     reply_markup=markup.as_markup())
+#     await state.update_data(
+#         {'num': message.text.lower(), 'markup': markup, 'from_base': 10, 'to_base': 2, 'main_msg': main_msg})
+#
+#     await message.delete()
+#
+#
+# @dp.callback_query(BaseConverter.num)
+# async def BaseConverter_num_callback(call: CallbackQuery, state: FSMContext):
+#     to_del = await call.message.answer('Введите основание СС')
+#     await state.update_data({'type': call.data, 'msg_to_del': to_del})
+#     await state.set_state(BaseConverter.base)
+#
+#     await call.answer()
+#
+#
+# @dp.message(BaseConverter.base)
+# async def BaseConverter_base(message: Message, state: FSMContext, bot: Bot):
+#     data = await state.get_data()
+#     if not message.text.isdigit():
+#         await message.answer('Основание СС должно быть записано числом!')
+#     await state.update_data({data['type']: int(message.text)})
+#     conv = await num_base_converter(data['num'], data['to_base'], data['from_base'])
+#     text = bytes(
+#         fr'{data["num"]}\u208' + fr'\u208'.join([*str(data['from_base'])]) + fr' --> {conv}\u208' + r'\u208'.join(
+#             [*str(data['to_base'])]), 'utf-8').decode('unicode_escape')
+#
+#     markup = InlineKeyboardBuilder()
+#     markup.add(InlineKeyboardButton(text=f'ИЗ основания {data["from_base"]}', callback_data='from_base'))
+#     markup.add(InlineKeyboardButton(text=f'В основание {data["to_base"]}', callback_data='to_base'))
+#
+#     # await data['main_msg'].edit_text(str(text), parse_mode=ParseMode.HTML)
+#     await bot.edit_message_text(data['main_msg'].message_id, text)
+#     # await data['main_msg'].edit_reply_markup(markup.as_markup())
+#
+#     await state.set_state(BaseConverter.num)
+#
+#     await message.delete()
+#     # await data['to_del'].delete()
 
 
 @dp.message(F.text.startswith(('2', '3', '4', '5')))
@@ -704,7 +805,10 @@ async def aliases(message: Message, state: FSMContext):
 async def kit(message: Message, command: CommandObject):
     if command.args == '11':
         await message.delete()
-        kit11 = {"алг": "https://gdz-putina.fun/klass-11/algebra/alimov", "анг": "https://gdz-putina.fun/klass-11/anglijskij-yazyk/spotlight-evans", "ерш": "https://gdz-putina.fun/klass-10/algebra/samostoyatelnie-i-kontrolnie-raboti-ershova", "геом": "https://gdz-putina.fun/klass-11/geometriya/atanasyan"}
+        kit11 = {"алг": "https://gdz-putina.fun/klass-11/algebra/alimov",
+                 "анг": "https://gdz-putina.fun/klass-11/anglijskij-yazyk/spotlight-evans",
+                 "ерш": "https://gdz-putina.fun/klass-10/algebra/samostoyatelnie-i-kontrolnie-raboti-ershova",
+                 "геом": "https://gdz-putina.fun/klass-11/geometriya/atanasyan"}
         await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
         msg = await message.answer('Готово!')
 
@@ -721,7 +825,9 @@ async def wordcloud_settings(message: Message, state: FSMContext):
     for k, v in current_settings.items():
         settings_text += f'{hbold(k)} - {hcode(v)}\n'
     await message.answer(settings_text, parse_mode=ParseMode.HTML)
-    await message.answer('<b>Отправьте сообщение выше по образцу для изменения настроек.</b>\n<a href="https://kristendavis27.medium.com/wordcloud-style-guide-2f348a03a7f8">colormap list</a>', parse_mode=ParseMode.HTML)
+    await message.answer(
+        '<b>Отправьте сообщение выше по образцу для изменения настроек.</b>\n<a href="https://kristendavis27.medium.com/wordcloud-style-guide-2f348a03a7f8">colormap list</a>',
+        parse_mode=ParseMode.HTML)
     await state.set_state(WordCloud.settings_input)
 
 
@@ -754,7 +860,8 @@ async def documents(message: Message):
     inline_kb = InlineKeyboardBuilder()
     ershov_button = InlineKeyboardButton(text='Сборник Ершова.pdf', callback_data='docs_ershov')
     ershovg_button = InlineKeyboardButton(text='Сборник Ершова Геометрия.pdf', callback_data='docs_ershovg')
-    yashenko_matem_button = InlineKeyboardButton(text='Ященко (Математика ЕГЭ) 2024 36 вариантов.pdf', callback_data='docs_yashenkomatem')
+    yashenko_matem_button = InlineKeyboardButton(text='Ященко (Математика ЕГЭ) 2024 36 вариантов.pdf',
+                                                 callback_data='docs_yashenkomatem')
     inline_kb.add(ershov_button, ershovg_button, yashenko_matem_button)
     inline_kb.adjust(1)
     await message.answer('<b>Документы: </b>', reply_markup=inline_kb.as_markup())
@@ -787,7 +894,8 @@ async def other_messages(message: Message):
         image = text_data['image']
         answer_text = f'<b>Количество слов:</b> <code>{aow}</code>\n<b>Количество предложений:</b> <code>{aos}</code>\n<b>Количество символов:</b> <code>{aoc}</code> (<code>{aocws}</code> без пробелов)'
         if image is not None:
-            await message.answer_photo(BufferedInputFile(image.getvalue(), filename='image.png'), caption=answer_text, parse_mode=ParseMode.HTML)
+            await message.answer_photo(BufferedInputFile(image.getvalue(), filename='image.png'), caption=answer_text,
+                                       parse_mode=ParseMode.HTML)
         else:
             await message.answer(answer_text, parse_mode=ParseMode.HTML)
 
@@ -814,7 +922,9 @@ async def other_messages(message: Message):
                 task_groups = await gdzput.get_task_groups(destination_url)
                 if len(args) < 3:
                     err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} {args[1] if len(args) > 1 else "100"}</code> <i>(номер задания)</i>'
-                    err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys())))
+                    err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(
+                        f'<b>{c + 1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d
+                        in enumerate(list(task_groups.keys())))
                     await message.answer(err1)
                     return
                 # if len(task_groups) == 1:
@@ -825,14 +935,15 @@ async def other_messages(message: Message):
                     #     return
                     # await message.answer(str(list(task_groups.keys())))
                     for v in vars_list:
-                        imgs = await gdzput.gdz(destination_url, v, list(task_groups.keys())[int(args[2])-1])
+                        imgs = await gdzput.gdz(destination_url, v, list(task_groups.keys())[int(args[2]) - 1])
                         if await sql.get_data(message.from_user.id, "upscaled") == 1:
                             inputs = [InputMediaDocument(media=i) for i in imgs]
                         else:
                             inputs = [InputMediaPhoto(media=i) for i in imgs]
                         inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
                         for input_ in inputs:
-                            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{v}</a>', media=input_)
+                            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{v}</a>',
+                                                            media=input_)
                             await message.answer_media_group(media_group.build())
             except TypeError as e:
                 await message.answer('Номер не найден!')

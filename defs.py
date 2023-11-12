@@ -3,7 +3,7 @@ import io
 import string
 import typing
 
-from aiogram import types, html, Bot
+from aiogram import html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
@@ -20,6 +20,7 @@ from wordcloud import WordCloud
 
 import db
 from config import sql
+from exceptions import NumDontExistError, BaseDontExistError
 from keyboards import menu_markup
 
 
@@ -90,3 +91,25 @@ async def cancel_state(state: FSMContext):
 async def main_message(message: Message):
     await message.answer(db.main_message, parse_mode=ParseMode.HTML,
                          reply_markup=await menu_markup(message.from_user.id))
+
+
+async def num_base_converter(num: int | str, to_base: int, from_base: int = 10):
+    if (to_base or from_base) > 36:
+        raise BaseDontExistError
+    alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if isinstance(num, str):
+        try:
+            n = int(num, from_base)
+        except ValueError as e:
+            raise NumDontExistError(f"Value '{num}' dont exist in '{from_base}' base", num, from_base)
+    else:
+        n = int(num)
+        max_n = max([int(i) for i in str(n)])
+        if max_n >= from_base:
+            raise NumDontExistError(f"Value '{max_n}' dont exist in '{from_base}' base", max_n, from_base)
+    if str(n).isdigit():
+        n = int(n)
+        if n < to_base:
+            return alphabet[n]
+        else:
+            return (await num_base_converter(n // to_base, to_base)) + alphabet[n % to_base]
