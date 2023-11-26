@@ -396,13 +396,22 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
     try:
         conv = await num_base_converter(num, int(to_base), int(from_base))
     except NumDontExistError as e:
-        await message.answer(f"<b>Ошибка</b>: Значениe '<code>{e.args[1]}</code>' не существуют в СС с основанием '<code>{e.args[2]}</code>'", parse_mode=ParseMode.HTML)
+        await message.answer(
+            f"<b>Ошибка</b>: Значениe '<code>{e.args[1]}</code>' не существуют в СС с основанием '<code>{e.args[2]}</code>'",
+            parse_mode=ParseMode.HTML)
         return
     except BaseDontExistError:
         await message.answer('<b>Ошибка</b>: СС с основанием > <code>36</code>', parse_mode=ParseMode.HTML)
         return
-    text = bytes(fr'{hcode(num)}\u208' + fr'\u208'.join([*str(from_base)]) + fr' --> {hcode(conv)}\u208' + r'\u208'.join([*str(to_base)]), 'utf-8').decode('unicode_escape')
+    text = bytes(
+        fr'{hcode(num)}\u208' + fr'\u208'.join([*str(from_base)]) + fr' --> {hcode(conv)}\u208' + r'\u208'.join(
+            [*str(to_base)]), 'utf-8').decode('unicode_escape')
     await message.answer(text, parse_mode=ParseMode.HTML)
+
+
+@dp.message(F.text.contains('2764'))
+async def mpassword(message: Message):
+    await message.answer(hcode('U+2764 U+FE0F U+200D U+1FA79'))
 
 
 @dp.message(F.text.startswith(('2', '3', '4', '5')))
@@ -869,6 +878,8 @@ async def other_messages(message: Message):
                 print(e)
             except Exception as e:
                 print(e)
+        else:
+            await message.answer('ниче не понял')
 
 
 @dp.message(IsAdmin())
