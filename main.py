@@ -881,12 +881,19 @@ async def other_messages(message: Message):
                 print(e)
         else:
             # await message.answer('ниче не понял')
-            formulas = await formulas_searcher(low)
+            formulas = await formulas_searcher(low, {
+                'http': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500',
+                'https': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500'
+            })
             if len(formulas) == 0:
-                await message.answer(f'<b>Не было найден никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
+                await message.answer(
+                    f'<b>Не было найден никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
             else:
-                await message.answer(f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n<code>' + '</code>\n<code>'.join(formulas) + '</code>', parse_mode=ParseMode.HTML)
+                await message.answer(
+                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n<code>' + '</code>\n<code>'.join(
+                        formulas) + '</code>', parse_mode=ParseMode.HTML)
             await message.delete()
+
 
 @dp.message(IsAdmin())
 async def other_content_admin(message: Message):
