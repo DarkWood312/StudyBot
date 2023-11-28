@@ -22,7 +22,8 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 # from netschool import NetSchool
 
 
-from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis, num_base_converter
+from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis, num_base_converter, \
+    formulas_searcher
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -879,8 +880,13 @@ async def other_messages(message: Message):
             except Exception as e:
                 print(e)
         else:
-            await message.answer('ниче не понял')
-
+            # await message.answer('ниче не понял')
+            formulas = await formulas_searcher(low)
+            if len(formulas) == 0:
+                await message.answer(f'<b>Не было найден никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
+            else:
+                await message.answer(f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n<code>' + '</code>\n<code>'.join(formulas) + '</code>', parse_mode=ParseMode.HTML)
+            await message.delete()
 
 @dp.message(IsAdmin())
 async def other_content_admin(message: Message):

@@ -1,14 +1,15 @@
-import _io
 import io
 import string
 import typing
 
+import requests
 from aiogram import html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.media_group import MediaGroupBuilder
+from bs4 import BeautifulSoup
 from nltk import word_tokenize, sent_tokenize
 from pymorphy3 import MorphAnalyzer
 from emoji import emojize
@@ -28,7 +29,8 @@ async def remove_chars_from_text(text, chars) -> str:
     return "".join([ch for ch in text if ch not in chars])
 
 
-async def text_analysis(text: str, user_id: int=None, count_digits: bool = False, convert_to_image: bool = True) -> typing.Dict[str, int | io.BytesIO]:
+async def text_analysis(text: str, user_id: int = None, count_digits: bool = False, convert_to_image: bool = True) -> \
+typing.Dict[str, int | io.BytesIO]:
     # nltk.download('punkt')
     # nltk.download('stopwords')
 
@@ -53,7 +55,9 @@ async def text_analysis(text: str, user_id: int=None, count_digits: bool = False
                            .replace(' - ', ' ').replace(' – ', ' ').replace(' — ', ' '))
     wordt = word_tokenize(text_no_punctuation, language='russian')
     sentencet = sent_tokenize(text, language='russian')
-    return {'amount_of_words': len(wordt), 'amount_of_sentences': len(sentencet), 'amount_of_chars': len(text.lower()), 'amount_of_chars_without_space': len(text.lower().replace(' ', '')), 'image': bio}
+    return {'amount_of_words': len(wordt), 'amount_of_sentences': len(sentencet), 'amount_of_chars': len(text.lower()),
+            'amount_of_chars_without_space': len(text.lower().replace(' ', '')), 'image': bio}
+
 
 async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int | None = None):
     """
@@ -113,3 +117,25 @@ async def num_base_converter(num: int | str, to_base: int, from_base: int = 10):
             return alphabet[n]
         else:
             return (await num_base_converter(n // to_base, to_base)) + alphabet[n % to_base]
+
+
+async def formulas_searcher(query: str) -> typing.Dict[str, typing.List[str]]:
+    url = f'https://www.indigomath.ru/poisk/?data%5Btags%5D={query}&data%5Bf_category%5D&page=1'
+    r = requests.get(url)
+
+    pages_content = BeautifulSoup(r.content, 'lxml').find('ul', class_='pagination')
+    pages_to_parse = [url]
+    if pages_content is not None:
+        pages_to_parse = ['https://www.indigomath.ru' + e.get('href') for e in
+                          BeautifulSoup(r.content, 'lxml').find('ul', class_='pagination').find_all(class_='page-link') if
+                          e.getText().isdigit()]
+    formulas = {}
+    for page in pages_to_parse:
+        fres = requests.get(page)
+
+        formulas_content = [f.find('a') for f in BeautifulSoup(fres.content, 'lxml').find_all(class_='s_formula_row')]
+        for f in formulas_content:
+            formulas[f.find('img').get('alt').replace('\r', '')] = [f.find_previous('a').getText(),
+                                                  f.find('img').get('title').replace('\n', ' | ').replace('\r', ''),
+                                                  f.get('href')]
+    return formulas
