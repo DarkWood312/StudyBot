@@ -14,7 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
     CallbackQuery, InputMediaPhoto, InputMediaDocument, InputFile, FSInputFile, BufferedInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.utils.markdown import hbold, hcode, hlink, hide_link
+from aiogram.utils.markdown import hbold, hcode, hlink, hide_link, hitalic
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from exceptions import NumDontExistError, BaseDontExistError
@@ -881,20 +881,24 @@ async def other_messages(message: Message):
                 print(e)
         else:
             # await message.answer('ниче не понял')
+            loading_msg = await message.answer(f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...", disable_notification=True)
+            await message.delete()
             formulas = await formulas_searcher(low, {
                 'http': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500',
                 'https': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500'
             })
             if len(formulas) == 0:
                 await message.answer(
-                    f'<b>Не было найден никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
+                    f'<b>Не найдено никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
             else:
                 lines = []
                 for f in formulas:
                     lines.append(f'<a href="{formulas[f][2]}">{f}</a>')
-                await message.answer(
-                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n' + '\n'.join(lines), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-            await message.delete()
+                chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
+                await message.answer(f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i> <b>({len(formulas)})</b>')
+                for chunk in chunks:
+                    await message.answer('\n'.join(chunk), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+            await loading_msg.delete()
 
 
 @dp.message(IsAdmin())
