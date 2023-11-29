@@ -889,9 +889,11 @@ async def other_messages(message: Message):
                 await message.answer(
                     f'<b>Не было найден никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
             else:
+                lines = []
+                for f in formulas:
+                    lines.append(f'<a href="{formulas[f][2]}">{f}</a>')
                 await message.answer(
-                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n<code>' + '</code>\n<code>'.join(
-                        formulas) + '</code>', parse_mode=ParseMode.HTML)
+                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i>\n' + '\n'.join(lines), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
             await message.delete()
 
 

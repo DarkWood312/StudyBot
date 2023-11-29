@@ -140,5 +140,5 @@ async def formulas_searcher(query: str, proxies: typing.Dict[str, str] = typing.
                                                                     f.find('img').get('title').replace('\n',
                                                                                                        ' | ').replace(
                                                                         '\r', ''),
-                                                                    f.get('href')]
+                                                                    'https://www.indigomath.ru' + f.get('href')]
     return formulas
