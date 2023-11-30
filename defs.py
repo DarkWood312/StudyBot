@@ -1,4 +1,5 @@
 import io
+import itertools
 import string
 import typing
 
@@ -120,29 +121,14 @@ async def num_base_converter(num: int | str, to_base: int, from_base: int = 10):
             return (await num_base_converter(n // to_base, to_base)) + alphabet[n % to_base]
 
 
-# async def formulas_searcher(query: str, proxies: typing.Dict[str, str] = typing.Dict[str, str]) -> typing.Dict[str, typing.List[str]]:
-#     url = f'https://www.indigomath.ru/poisk/?data%5Btags%5D={query}&data%5Bf_category%5D&page=1'
-#     r = requests.get(url, proxies=proxies)
-#
-#     pages_content = BeautifulSoup(r.content, 'lxml').find('ul', class_='pagination')
-#     pages_to_parse = [url]
-#     if pages_content is not None:
-#         pages_to_parse = ['https://www.indigomath.ru' + e.get('href') for e in
-#                           BeautifulSoup(r.content, 'lxml').find('ul', class_='pagination').find_all(class_='page-link')
-#                           if
-#                           e.getText().isdigit()]
-#     formulas = {}
-#     for page in pages_to_parse:
-#         fres = requests.get(page, proxies=proxies)
-#
-#         formulas_content = [f.find('a') for f in BeautifulSoup(fres.content, 'lxml').find_all(class_='s_formula_row')]
-#         for f in formulas_content:
-#             formulas[f.find('img').get('alt').replace('\r', '')] = [f.find_previous('a').getText(),
-#                                                                     f.find('img').get('title').replace('\n',
-#                                                                                                        ' | ').replace(
-#                                                                         '\r', ''),
-#                                                                     'https://www.indigomath.ru' + f.get('href')]
-#     return formulas
+async def nums_from_input(inp: str) -> typing.List[str | int]:
+    nums = [n.split('-') for n in inp.split(',')]
+    numss = [range(int(n[0]), int(n[1]) + 1) for n in nums if len(n) > 1]
+    numss = [[*n] for n in numss]
+    nums = [n[0] for n in nums if len(n) == 1]
+    ready = [*itertools.chain(nums, *numss)]
+    ready = sorted([*map(int, [n for n in ready])]) if len(numss) > 0 else ready
+    return ready
 
 
 async def formulas_searcher(query: str, proxies: typing.Dict[str, str] = typing.Dict[str, str]) -> typing.Dict[

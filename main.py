@@ -23,7 +23,7 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 
 from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis, num_base_converter, \
-    formulas_searcher
+    formulas_searcher, nums_from_input
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -836,14 +836,7 @@ async def other_messages(message: Message):
         if args[0] in aliases_dict:
             if len(args) > 2:
                 var = args[1]
-                if '-' in var:
-                    f, s = var.split('-')
-                    vars_list = [*range(int(f.strip()), int(s.strip()) + 1)]
-                elif ',' in var:
-                    vars_list = var.split(',')
-                    vars_list = list(dict.fromkeys([int(i.strip()) for i in vars_list]))
-                else:
-                    vars_list = [var]
+                vars_list = await nums_from_input(var)
             mgdz = ModernGDZ(message.from_user.id)
             gdzput = mgdz.GdzPutinaFun()
             try:

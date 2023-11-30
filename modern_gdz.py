@@ -1,6 +1,8 @@
 from difflib import get_close_matches
 
 import typing
+
+import aiohttp
 import requests
 from bs4 import BeautifulSoup
 
@@ -48,19 +50,21 @@ class ModernGDZ:
             grades_dict = {}
             subjects = {}
 
-            r = requests.get(self.main_url, headers=headers)
-            grades = BeautifulSoup(r.content, 'lxml').find(class_='siteMenu').find_all(class_='classesSelect')
+            # r = requests.get(self.main_url, headers=headers)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.main_url, headers=headers) as r:
+                    grades = BeautifulSoup(await r.text(), 'lxml').find(class_='siteMenu').find_all(class_='classesSelect')
 
-            for grade in grades:
-                grade_num = grade.find('div').find('a').get('href')[1:]
+                    for grade in grades:
+                        grade_num = grade.find('div').find('a').get('href')[1:]
 
-                for subject in grade.find('ul').find_all('li'):
-                    subject_url = subject.find('a').get('href')
+                        for subject in grade.find('ul').find_all('li'):
+                            subject_url = subject.find('a').get('href')
 
-                    subjects[subject.find('a').getText().strip()] = self.main_url + subject_url
+                            subjects[subject.find('a').getText().strip()] = self.main_url + subject_url
 
-                grades_dict[grade_num] = subjects
-                subjects = {}
+                        grades_dict[grade_num] = subjects
+                        subjects = {}
 
             return grades_dict
 
@@ -71,52 +75,54 @@ class ModernGDZ:
             return url
 
         async def get_books(self, url) -> list:
-            r = requests.get(url, headers=headers)
-            books = BeautifulSoup(r.content, 'lxml').find(class_='box').find_all('a', class_='book')
-            books_list = []
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as r:
+                    books = BeautifulSoup(await r.text(), 'lxml').find(class_='box').find_all('a', class_='book')
+                    books_list = []
 
-            for book in books:
-                img_content = book.find('img')
-                img_url = self.main_url + img_content.get('data-src')
-                img_title = img_content.get('alt')
-                book_url_without_main = book.get('href')
-                book_url = self.main_url + book_url_without_main
-                authors = ': '.join(
-                    [a.strip() for a in book.find(class_='authors-in-category').getText().split(':', 1)])
-                book_dict = {
-                    'img_url': img_url,
-                    'img_title': img_title,
-                    'book_url': book_url,
-                    'main_url': self.main_url,
-                    'book_without_class': book_url_without_main.split('/', 2)[-1],
-                    'class_url': self.main_url + book_url.split('/', 2)[1],
-                    'author': authors.upper()
-                }
-                books_list.append(book_dict)
+                    for book in books:
+                        img_content = book.find('img')
+                        img_url = self.main_url + img_content.get('data-src')
+                        img_title = img_content.get('alt')
+                        book_url_without_main = book.get('href')
+                        book_url = self.main_url + book_url_without_main
+                        authors = ': '.join(
+                            [a.strip() for a in book.find(class_='authors-in-category').getText().split(':', 1)])
+                        book_dict = {
+                            'img_url': img_url,
+                            'img_title': img_title,
+                            'book_url': book_url,
+                            'main_url': self.main_url,
+                            'book_without_class': book_url_without_main.split('/', 2)[-1],
+                            'class_url': self.main_url + book_url.split('/', 2)[1],
+                            'author': authors.upper()
+                        }
+                        books_list.append(book_dict)
 
             return books_list
 
         async def get_task_groups(self, book_url: str) -> typing.Dict[str, typing.Dict[str, str]]:
-            main_content = requests.get(book_url, headers=headers)
-            tasks = BeautifulSoup(main_content.content, 'lxml').find(class_='tasks')
-            task_groups = {}
-            for t in tasks.find_all('div'):
-                if t.get('id') is None:
-                    ul = t.find('ul', class_='structure')
-                    li_dict = {}
-                    for li in ul.find_all('li', class_='structure-item'):
-                        li = li.find('a')
-                        n = li.getText().strip()
-                        nb = ''
-                        if not n.isdigit() and n[0].isdigit():
-                            for char in n:
-                                if not char.isdigit():
-                                    break
-                                nb += char.lower()
-                        else:
-                            nb = n.lower()
-                        li_dict[nb] = li.get('href')
-                    task_groups[t.find(class_='titleHead').getText().strip()] = li_dict
+            async with aiohttp.ClientSession() as session:
+                async with session.get(book_url, headers=headers) as main_content:
+                    tasks = BeautifulSoup(await main_content.text(), 'lxml').find(class_='tasks')
+                    task_groups = {}
+                    for t in tasks.find_all('div'):
+                        if t.get('id') is None:
+                            ul = t.find('ul', class_='structure')
+                            li_dict = {}
+                            for li in ul.find_all('li', class_='structure-item'):
+                                li = li.find('a')
+                                n = li.getText().strip()
+                                nb = ''
+                                if not n.isdigit() and n[0].isdigit():
+                                    for char in n:
+                                        if not char.isdigit():
+                                            break
+                                        nb += char.lower()
+                                else:
+                                    nb = n.lower()
+                                li_dict[nb] = li.get('href')
+                            task_groups[t.find(class_='titleHead').getText().strip()] = li_dict
             return task_groups
 
         async def gdz(self, url, num, task_group: str | None = None) -> typing.List[str]:
