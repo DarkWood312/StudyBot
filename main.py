@@ -798,10 +798,11 @@ async def documents(message: Message):
 
 
 @dp.message(F.text)
-async def other_messages(message: Message):
+async def other_messages(message: Message, bot: Bot):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     await sql.add_wordcloud_user(user_id=message.from_user.id)
+    # if (message.chat.type == 'group' and message.text.startswith('std')) or message.chat.type != 'group'
     low = message.text.lower()
     # gdz = GDZ(message.from_user.id)
 
@@ -834,6 +835,7 @@ async def other_messages(message: Message):
         # await message.answer(str(aliases))
         # await message.answer(str(args))
         if args[0] in aliases_dict:
+            await bot.send_chat_action(message.chat.id, 'upload_photo')
             if len(args) > 2:
                 var = args[1]
                 vars_list = await nums_from_input(var)
@@ -874,7 +876,10 @@ async def other_messages(message: Message):
                 print(e)
         else:
             # await message.answer('ниче не понял')
-            loading_msg = await message.answer(f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...", disable_notification=True)
+            loading_msg = await message.answer(
+                f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...",
+                disable_notification=True)
+            await bot.send_chat_action(message.chat.id, 'typing')
             await message.delete()
             formulas = await formulas_searcher(low, {
                 'http': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500',
@@ -888,10 +893,16 @@ async def other_messages(message: Message):
                 for f in formulas:
                     lines.append(f'<a href="{formulas[f][2]}">{f}</a>')
                 chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
-                await message.answer(f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i> <b>({len(formulas)})</b>')
+                await message.answer(
+                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i> <b>({len(formulas)})</b>')
                 for chunk in chunks:
                     await message.answer('\n'.join(chunk), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
             await loading_msg.delete()
+
+
+@dp.message(F.chat.type == 'group')
+async def group(message: Message):
+    await message.answer('groupgroup')
 
 
 @dp.message(IsAdmin())
