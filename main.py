@@ -808,7 +808,7 @@ async def state_formulas_list(call: CallbackQuery, state: FSMContext):
     await state.update_data({'fgroup': fgroup})
     markup = InlineKeyboardBuilder().add(
         *[InlineKeyboardButton(text=b, callback_data=str(i)) for i, b in enumerate(fgroup.keys())]).add(
-        InlineKeyboardButton(text='Назад', callback_data='back')).adjust(1)
+        InlineKeyboardButton(text='Вернуться назад', callback_data='back')).adjust(1)
     await data['fmsg'].edit_text(text='Выберите тему: ', reply_markup=markup.as_markup())
     await state.set_state(Formulas.formulas_out)
 
