@@ -786,8 +786,6 @@ async def WordCloud_settings_input(message: Message, state: FSMContext):
 @dp.message(Command('formulas'))
 async def formulas_cmd(message: Message, state: FSMContext, msg_to_edit: Message = None):
     await cancel_state(state, False)
-    if msg_to_edit is None:
-        await message.delete()
     async with aiohttp.ClientSession() as session:
         im = IndigoMath(session)
         fgroups = await im.formulas_groups()
@@ -799,6 +797,8 @@ async def formulas_cmd(message: Message, state: FSMContext, msg_to_edit: Message
         fmsg = await message.answer(text='Выберите категорию: ', reply_markup=markup.as_markup())
     await state.update_data({'fmsg': fmsg, 'fgroups': fgroups, 'delete_this_msgs': [fmsg]})
     await state.set_state(Formulas.formulas_list)
+    if msg_to_edit is None:
+        await message.delete()
 
 
 @dp.callback_query(Formulas.formulas_list)
