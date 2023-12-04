@@ -6,6 +6,7 @@ SQL_USER=
 SQL_PORT=
 SQL_DATABASE=
 SQL_PASSWORD=
+PROXY=
 ```
 
 ### Database (_PostgreSQL_)

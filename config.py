@@ -5,6 +5,7 @@ from os import environ
 
 load_dotenv()
 token = environ['API_TOKEN']
+proxy = environ['PROXY']
 try:
     sql = Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'], environ['SQL_USER'])
 except OperationalError:

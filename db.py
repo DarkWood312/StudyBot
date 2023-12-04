@@ -25,6 +25,7 @@ main_message = f'''
 
 <b>Калькулятор систем счисления(СС) --> </b>/base_converter
 
+<b>Формулы --> </b>/formulas
 <b>Для поиска формул(математика, физика) нужно просто написать название формулы или любые известные данные</b>:
 <i>Пример</i>: '<code>энергия</code>' --> <code>*формулы для нахождения энергии или формулы, где нужна энергия*</code>
 
@@ -39,8 +40,6 @@ main_message = f'''
 
 <b>Кто автор? Исходный код? --> </b>/author
 '''
-
-owner_id = 493006916
 
 # kist_ids = {
 #     'ist2': 'AgACAgIAAxkBAAICoWODq5zJeX6L2U5-Z6efHN1QM4MuAALxxjEbwWUgSFHg8XorGDFtAQADAgADcwADKwQ',

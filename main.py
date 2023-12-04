@@ -4,6 +4,7 @@ import random
 import sys
 from random import shuffle
 
+import aiohttp
 import nltk
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, types, F, Router, html
@@ -22,12 +23,13 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 # from netschool import NetSchool
 
 
-from defs import cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis, num_base_converter, \
-    formulas_searcher, nums_from_input
+from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
+                  num_base_converter,
+                  nums_from_input, IndigoMath)
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
-from config import token, sql
+from config import token, sql, proxy
 
 router = Router()
 dp = Dispatcher(storage=MemoryStorage())
@@ -75,6 +77,11 @@ class WordCloud(StatesGroup):
 class BaseConverter(StatesGroup):
     num = State()
     base = State()
+
+
+class Formulas(StatesGroup):
+    formulas_list = State()
+    formulas_out = State()
 
 
 class IsAdmin(Filter):
@@ -776,6 +783,54 @@ async def WordCloud_settings_input(message: Message, state: FSMContext):
     await cancel_state(state)
 
 
+@dp.message(Command('formulas'))
+async def formulas_cmd(message: Message, state: FSMContext, msg_to_edit: Message = None):
+    await cancel_state(state, False)
+    if msg_to_edit is None:
+        await message.delete()
+    async with aiohttp.ClientSession() as session:
+        im = IndigoMath(session)
+        fgroups = await im.formulas_groups()
+    markup = InlineKeyboardBuilder().add(
+        *[InlineKeyboardButton(text=b, callback_data=str(i)) for i, b in enumerate(fgroups.keys())]).adjust(1)
+    if msg_to_edit is not None:
+        fmsg = await msg_to_edit.edit_text(text='Выберите категорию: ', reply_markup=markup.as_markup())
+    else:
+        fmsg = await message.answer(text='Выберите категорию: ', reply_markup=markup.as_markup())
+    await state.update_data({'fmsg': fmsg, 'fgroups': fgroups, 'delete_this_msgs': [fmsg]})
+    await state.set_state(Formulas.formulas_list)
+
+
+@dp.callback_query(Formulas.formulas_list)
+async def state_formulas_list(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    fgroup = list(data['fgroups'].values())[int(call.data)]
+    await state.update_data({'fgroup': fgroup})
+    markup = InlineKeyboardBuilder().add(
+        *[InlineKeyboardButton(text=b, callback_data=str(i)) for i, b in enumerate(fgroup.keys())]).add(
+        InlineKeyboardButton(text='Назад', callback_data='back')).adjust(1)
+    await data['fmsg'].edit_text(text='Выберите тему: ', reply_markup=markup.as_markup())
+    await state.set_state(Formulas.formulas_out)
+
+
+@dp.callback_query(Formulas.formulas_out)
+async def state_formulas_out(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    if call.data == 'back':
+        await formulas_cmd(call.message, state, data['fmsg'])
+    else:
+        fgroup = data['fgroup']
+        async with aiohttp.ClientSession() as session:
+            formulas = await IndigoMath(session).get_formulas(list(data['fgroup'].values())[int(call.data)])
+        lines = [f'<a href="{formulas[f][2]}">{f}</a>' for f in formulas]
+        chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
+        for chunk in chunks:
+            await call.message.answer(
+                f'<b>Формулы по запросу:</b> <i>{html.quote(list(fgroup.keys())[int(call.data)])}</i> <b>({len(formulas)})</b>\n' + '\n'.join(
+                    chunk), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+        await call.answer()
+
+
 @dp.message(Command('author'))
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
@@ -830,74 +885,72 @@ async def other_messages(message: Message, bot: Bot):
             await message.answer(answer_text, parse_mode=ParseMode.HTML)
 
     else:
-        aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
-        args = low.split(' ')
-        # await message.answer(str(aliases))
-        # await message.answer(str(args))
-        if args[0] in aliases_dict:
-            await bot.send_chat_action(message.chat.id, 'upload_photo')
-            if len(args) > 2:
-                var = args[1]
-                vars_list = await nums_from_input(var)
-            mgdz = ModernGDZ(message.from_user.id)
-            gdzput = mgdz.GdzPutinaFun()
-            try:
-                destination_url = str(aliases_dict[args[0]])
-                task_groups = await gdzput.get_task_groups(destination_url)
-                if len(args) < 3:
-                    err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} {args[1] if len(args) > 1 else "100"}</code> <i>(номер задания)</i>'
-                    err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(
-                        f'<b>{c + 1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d
-                        in enumerate(list(task_groups.keys())))
-                    await message.answer(err1)
-                    return
-                # if len(task_groups) == 1:
-                #     imgs = await gdzput.gdz(destination_url, args[1])
-                else:
-                    # if len(args) < 3:
-                    #     await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
-                    #     return
-                    # await message.answer(str(list(task_groups.keys())))
-                    for v in vars_list:
-                        imgs = await gdzput.gdz(destination_url, v, list(task_groups.keys())[int(args[2]) - 1])
-                        if await sql.get_data(message.from_user.id, "upscaled") == 1:
-                            inputs = [InputMediaDocument(media=i) for i in imgs]
-                        else:
-                            inputs = [InputMediaPhoto(media=i) for i in imgs]
-                        inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
-                        for input_ in inputs:
-                            media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{v}</a>',
-                                                            media=input_)
-                            await message.answer_media_group(media_group.build())
-            except TypeError as e:
-                await message.answer('Номер не найден!')
-                print(e)
-            except Exception as e:
-                print(e)
-        else:
-            # await message.answer('ниче не понял')
-            loading_msg = await message.answer(
-                f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...",
-                disable_notification=True)
-            await bot.send_chat_action(message.chat.id, 'typing')
-            await message.delete()
-            formulas = await formulas_searcher(low, {
-                'http': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500',
-                'https': 'http://6NeZMV:iSxcP9mEj0@188.130.129.29:5500'
-            })
-            if len(formulas) == 0:
-                await message.answer(
-                    f'<b>Не найдено никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
+        async with aiohttp.ClientSession() as session:
+            im = IndigoMath(session)
+            aliases_dict = await sql.get_data(message.from_user.id, 'aliases')
+            args = low.split(' ')
+            # await message.answer(str(aliases))
+            # await message.answer(str(args))
+            if args[0] in aliases_dict:
+                await bot.send_chat_action(message.chat.id, 'upload_photo')
+                if len(args) > 2:
+                    var = args[1]
+                    vars_list = await nums_from_input(var)
+                mgdz = ModernGDZ(message.from_user.id)
+                gdzput = mgdz.GdzPutinaFun()
+                try:
+                    destination_url = str(aliases_dict[args[0]])
+                    task_groups = await gdzput.get_task_groups(destination_url)
+                    if len(args) < 3:
+                        err1 = f'<b>Неправильно введены аргументы!</b>\nПример: <code>{args[0]} {args[1] if len(args) > 1 else "100"}</code> <i>(номер задания)</i>'
+                        err1 = err1 + ' <code>1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(
+                            f'<b>{c + 1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for
+                            c, d
+                            in enumerate(list(task_groups.keys())))
+                        await message.answer(err1)
+                        return
+                    # if len(task_groups) == 1:
+                    #     imgs = await gdzput.gdz(destination_url, args[1])
+                    else:
+                        # if len(args) < 3:
+                        #     await message.answer(f'<b>Нужно указать номер группы заданий!</b>\nПример: <code>{args[0]} {args[1]} 1</code> <i>(номер группы)</i>\n<b>Доступные номера групп:</b>\n' + f'\n'.join(f'<b>{c+1}</b>. <code>{d}: {" | ".join(list(task_groups[d].keys())[:4])}</code>...' for c, d in enumerate(list(task_groups.keys()))))
+                        #     return
+                        # await message.answer(str(list(task_groups.keys())))
+                        for v in vars_list:
+                            imgs = await gdzput.gdz(destination_url, v, list(task_groups.keys())[int(args[2]) - 1])
+                            if await sql.get_data(message.from_user.id, "upscaled") == 1:
+                                inputs = [InputMediaDocument(media=i) for i in imgs]
+                            else:
+                                inputs = [InputMediaPhoto(media=i) for i in imgs]
+                            inputs = [inputs[i:i + 10] for i in range(0, len(inputs), 10)]
+                            for input_ in inputs:
+                                media_group = MediaGroupBuilder(caption=f'<a href="{destination_url}">{v}</a>',
+                                                                media=input_)
+                                await message.answer_media_group(media_group.build())
+                except TypeError as e:
+                    await message.answer('Номер не найден!')
+                    print(e)
+                except Exception as e:
+                    print(e)
             else:
-                lines = []
-                for f in formulas:
-                    lines.append(f'<a href="{formulas[f][2]}">{f}</a>')
-                chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
-                await message.answer(
-                    f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i> <b>({len(formulas)})</b>')
-                for chunk in chunks:
-                    await message.answer('\n'.join(chunk), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-            await loading_msg.delete()
+                # await message.answer('ниче не понял')
+                loading_msg = await message.answer(
+                    f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...",
+                    disable_notification=True)
+                await bot.send_chat_action(message.chat.id, 'typing')
+                await message.delete()
+                formulas = await im.formulas_searcher(low)
+                if len(formulas) == 0:
+                    await message.answer(
+                        f'<b>Не найдено никаких формул по запросу:</b> <code>{html.quote(message.text)}</code>')
+                else:
+                    lines = [f'<a href="{formulas[f][2]}">{f}</a>' for f in formulas]
+                    chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
+                    for chunk in chunks:
+                        await message.answer(
+                            f'<b>Формулы по запросу:</b> <i>{html.quote(message.text)}</i> <b>({len(formulas)})</b>\n' + '\n'.join(
+                                chunk), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+                await loading_msg.delete()
 
 
 @dp.message(F.chat.type == 'group')

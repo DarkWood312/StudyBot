@@ -3,9 +3,10 @@ import itertools
 import string
 import typing
 
+import aiogram
 import aiohttp
 import requests
-from aiogram import html
+from aiogram import html, Bot
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
@@ -22,7 +23,7 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 
 import db
-from config import sql
+from config import sql, proxy
 from exceptions import NumDontExistError, BaseDontExistError
 from keyboards import menu_markup
 
@@ -88,9 +89,14 @@ async def command_alias(user_id):
     return aliases_text, markup
 
 
-async def cancel_state(state: FSMContext):
+async def cancel_state(state: FSMContext, delete: bool = True):
     state_ = await state.get_state()
     if state_ is not None:
+        if delete:
+            data = await state.get_data()
+            if 'delete_this_msgs' in data:
+                for msg in data['delete_this_msgs']:
+                    await msg.delete()
         await state.clear()
 
 
@@ -131,12 +137,47 @@ async def nums_from_input(inp: str) -> typing.List[str | int]:
     return ready
 
 
-async def formulas_searcher(query: str, proxies: typing.Dict[str, str] = typing.Dict[str, str]) -> typing.Dict[
-    str, typing.List[str]]:
-    url = f'https://www.indigomath.ru/poisk/?data%5Btags%5D={query}&data%5Bf_category%5D&page=1'
+class IndigoMath:
+    def __init__(self, session: aiohttp.client.ClientSession, proxy: str = proxy):
+        self.session = session
+        self.proxy = proxy
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, proxy=proxies['http']) as r:
+    async def formulas_groups(self) -> typing.Dict[str, typing.Dict[str, str]]:
+        async with self.session.get('https://www.indigomath.ru/', proxy=self.proxy) as r:
+            soup = BeautifulSoup(await r.text(), 'lxml').find_all(id='myTabContent')
+            main_groups = {i.find_previous(class_='nav-link active').get_text(): i.find_all(class_='nav flex-column')
+                           for i in soup}
+            formula_groups = {}
+            for k, v in main_groups.items():
+                group = {}
+                for g in v:
+                    for i in g.find_all(class_='nav-link'):
+                        group[i.get_text()] = 'https://indigomath.ru' + i.get('href')
+                formula_groups[k] = group
+
+        return formula_groups
+
+    async def get_formulas(self, urls: str | list[str]) -> typing.Dict[str, typing.List[str]]:
+        formulas = {}
+        if isinstance(urls, str):
+            urls = [urls]
+        for url in urls:
+            async with self.session.get(url, proxy=self.proxy) as fres:
+                formulas_content = [f.find('a') for f in
+                                    BeautifulSoup(await fres.text(), 'lxml').find_all(class_='s_formula_row')]
+                for f in formulas_content:
+                    formulas[f.find('img').get('alt').replace('saknis', '√').replace('\r', '')] = [f.find_previous('a').getText(),
+                                                                            f.find('img').get('title').replace('\n',
+                                                                                                               ' | ').replace(
+                                                                                '\r', ''),
+                                                                            'https://www.indigomath.ru' + f.get('href')]
+
+        return formulas
+
+    async def formulas_searcher(self, query: str) -> typing.Dict[str, typing.List[str]]:
+        url = f'https://www.indigomath.ru/poisk/?data%5Btags%5D={query}&data%5Bf_category%5D&page=1'
+
+        async with self.session.get(url, proxy=self.proxy) as r:
             pages_content = BeautifulSoup(await r.text(), 'lxml').find('ul', class_='pagination')
 
             pages_to_parse = [url]
@@ -146,16 +187,5 @@ async def formulas_searcher(query: str, proxies: typing.Dict[str, str] = typing.
                                       class_='page-link')
                                   if
                                   e.getText().isdigit()]
-        formulas = {}
-        for page in pages_to_parse:
-            async with session.get(page, proxy=proxies['http']) as fres:
-                formulas_content = [f.find('a') for f in
-                                    BeautifulSoup(await fres.text(), 'lxml').find_all(class_='s_formula_row')]
-                for f in formulas_content:
-                    formulas[f.find('img').get('alt').replace('\r', '')] = [f.find_previous('a').getText(),
-                                                                            f.find('img').get('title').replace('\n',
-                                                                                                               ' | ').replace(
-                                                                                '\r', ''),
-                                                                            'https://www.indigomath.ru' + f.get('href')]
 
-        return formulas
+            return await self.get_formulas(pages_to_parse)
