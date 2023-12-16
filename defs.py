@@ -166,11 +166,12 @@ class IndigoMath:
                 formulas_content = [f.find('a') for f in
                                     BeautifulSoup(await fres.text(), 'lxml').find_all(class_='s_formula_row')]
                 for f in formulas_content:
-                    formulas[f.find('img').get('alt').replace('saknis', '√').replace('\r', '')] = [f.find_previous('a').getText(),
-                                                                            f.find('img').get('title').replace('\n',
-                                                                                                               ' | ').replace(
-                                                                                '\r', ''),
-                                                                            'https://www.indigomath.ru' + f.get('href')]
+                    formulas[f.find('img').get('alt').replace('saknis', '√').replace('\r', '')] = [
+                        f.find_previous('a').getText(),
+                        f.find('img').get('title').replace('\n',
+                                                           ' | ').replace(
+                            '\r', ''),
+                        'https://www.indigomath.ru' + f.get('href')]
 
         return formulas
 
@@ -189,3 +190,20 @@ class IndigoMath:
                                   e.getText().isdigit()]
 
             return await self.get_formulas(pages_to_parse)
+
+
+class AI:
+    def __init__(self, session: aiohttp.client.ClientSession):
+        self.session = session
+
+    async def chatgpt_turbo(self, message: str, chatcode: str = None) -> tuple[str, str]:
+        if chatcode is None:
+            async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/create',
+                                         json={'message': message}) as r:
+                out = await r.json()
+        else:
+            async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/chat',
+                                         json={'message': message, 'chatCode': chatcode}) as r:
+                out = await r.json()
+
+        return out['message'], out['chatCode']

@@ -13,19 +13,19 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument, InputFile, FSInputFile, BufferedInputFile
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+    CallbackQuery, InputMediaPhoto, InputMediaDocument, InputFile, FSInputFile, BufferedInputFile, KeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink, hide_link, hitalic
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from exceptions import NumDontExistError, BaseDontExistError
-from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup
+from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
 # from netschool import NetSchool
 
 
 from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                   num_base_converter,
-                  nums_from_input, IndigoMath)
+                  nums_from_input, IndigoMath, AI)
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -82,6 +82,11 @@ class BaseConverter(StatesGroup):
 class Formulas(StatesGroup):
     formulas_list = State()
     formulas_out = State()
+
+
+class AiState(StatesGroup):
+    choose = State()
+    chatgpt_turbo = State()
 
 
 class IsAdmin(Filter):
@@ -342,27 +347,38 @@ async def state_Test_credentials(message: Message, state: FSMContext):
     await orthoepy(message, state, test_mode=settings)
 
 
-# @dp.message(Command('mymarks'))
-# async def mark_report(message: Message, state: FSMContext):
-#     await cancel_state(state)
-#     logpass = await sql.get_logpass(message.from_user.id)
-#     if logpass is None:
-#         await message.answer('Войдите в <a href="https://sgo.rso23.ru/">Сетевой Город</a> командой /login !',
-#                              parse_mode=ParseMode.HTML)
-#         return
-#     ns = await NetSchool(login=logpass['login'], password=logpass['password'])
-#     all_marks = await ns.get_marks()
-#     subjects = list(all_marks.keys())
-#     markup = InlineKeyboardBuilder()
-#     for subject in subjects:
-#         marks = all_marks[subject]
-#         string_marks = ''.join([str(m) for m in all_marks[subject]])
-#         avg = round((sum(marks) / len(marks)), 2)
-#         markup.add(InlineKeyboardButton(text=f'{subject} - {avg}', callback_data=string_marks))
-#
-#     await message.answer('Оценки: ', reply_markup=markup.as_markup())
-#
-#     await message.delete()
+@dp.message(AiState.choose)
+async def AiState_choose(message: Message, state: FSMContext):
+    if 'Отмена❌' in message.text:
+        await cancel_state(state)
+        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+    else:
+        markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
+
+        if 'ChatGPT-Turbo' in message.text:
+            await message.answer('Чат создан.', reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.chatgpt_turbo)
+        else:
+            await message.answer('Нажмите кнопку')
+            return
+
+
+@dp.message(AiState.chatgpt_turbo)
+async def chatgpt_turbo_st(message: Message, state: FSMContext):
+    if 'Закончить разговор❌' in message.text:
+        await cancel_state(state)
+        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+        return
+    data = await state.get_data()
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        if 'chatCode' not in data:
+            resp, new_chatcode = await ai.chatgpt_turbo(message.text)
+            await state.update_data({'chatCode': new_chatcode})
+        else:
+            resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
+        await message.answer(f'💬<b>:</b>{html.quote(resp)}')
+
 
 @dp.message(Command('base_converter'))
 async def base_converter(message: Message, state: FSMContext):
@@ -831,6 +847,23 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
         await call.answer()
 
 
+@dp.message(Command('ai'))
+async def ai_command(message: Message, state: FSMContext, command: CommandObject):
+    if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
+        if command.args.startswith('-'):
+            await sql.change_data_type(command.args[1:], 'ai_access', False)
+            await message.answer(f'{command.args[1:]} потерял доступ к AI')
+        else:
+            await sql.change_data_type(command.args, 'ai_access', True)
+            await message.answer(f'{command.args} получил доступ к AI')
+        return
+    if not (await sql.get_data(message.from_user.id, 'ai_access')):
+        await message.answer('У вас нет доступа к этой функции.')
+        return
+    await message.answer('Выберите AI', reply_markup=await ai_markup())
+    await state.set_state(AiState.choose)
+
+
 @dp.message(Command('author'))
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
@@ -853,7 +886,7 @@ async def documents(message: Message):
 
 
 @dp.message(F.text)
-async def other_messages(message: Message, bot: Bot):
+async def other_messages(message: Message, bot: Bot, state: FSMContext):
     await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
                        message.from_user.last_name)
     await sql.add_wordcloud_user(user_id=message.from_user.id)
@@ -932,8 +965,9 @@ async def other_messages(message: Message, bot: Bot):
                     print(e)
                 except Exception as e:
                     print(e)
+            elif 'ai' in low:
+                await ai_command(message=message, state=state, command=CommandObject(prefix='/', command='ai', mention=None))
             else:
-                # await message.answer('ниче не понял')
                 loading_msg = await message.answer(
                     f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...",
                     disable_notification=True)
@@ -955,7 +989,7 @@ async def other_messages(message: Message, bot: Bot):
 
 @dp.message(F.chat.type == 'group')
 async def group(message: Message):
-    await message.answer('groupgroup')
+    await message.answer('hi group')
 
 
 @dp.message(IsAdmin())

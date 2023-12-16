@@ -1,16 +1,29 @@
 from typing import List
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from emoji import emojize
 
 from config import sql
 
 
 async def menu_markup(user_id):
-    button = KeyboardButton(text=emojize(f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[button]])
-    return markup
+    markup = ReplyKeyboardBuilder()
+    compress_button = KeyboardButton(text=emojize(f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
+    ai_button = KeyboardButton(text='AI🧠🔟')
+    markup.row(compress_button)
+    if await sql.get_data(user_id, 'ai_access'):
+        markup.row(ai_button)
+    return markup.as_markup(resize_keyboard=True)
+
+
+async def ai_markup():
+    markup = ReplyKeyboardBuilder()
+    chatgpt_turbo_button = KeyboardButton(text='ChatGPT-Turbo💬')
+    markup.row(chatgpt_turbo_button)
+    markup.row(KeyboardButton(text='Отмена❌'))
+    return markup.as_markup(resize_keyboard=True)
+
 
 
 async def cancel_markup():
