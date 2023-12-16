@@ -350,7 +350,9 @@ async def state_Test_credentials(message: Message, state: FSMContext):
 
 
 @dp.message(AiState.choose)
-async def AiState_choose(message: Message, state: FSMContext):
+async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    await bot.delete_message(message.chat.id, data['delete_this_msg'].message_id)
     if 'Отмена❌' in message.text:
         await cancel_state(state)
         await message.delete()
@@ -360,7 +362,6 @@ async def AiState_choose(message: Message, state: FSMContext):
         await message.delete()
         if 'ChatGPT-Turbo' in message.text:
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
-            await message.delete()
             await state.set_state(AiState.chatgpt_turbo)
         elif 'Midjourney-V4' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
@@ -900,7 +901,8 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
     if not (await sql.get_data(message.from_user.id, 'ai_access')):
         await message.answer('У вас нет доступа к этой функции.')
         return
-    await message.answer('Выберите AI', reply_markup=await ai_markup())
+    msg = await message.answer('Выберите AI', reply_markup=await ai_markup())
+    await state.update_data({'delete_this_msg': msg})
     await state.set_state(AiState.choose)
 
 
