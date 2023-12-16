@@ -364,11 +364,12 @@ async def AiState_choose(message: Message, state: FSMContext):
 
 
 @dp.message(AiState.chatgpt_turbo)
-async def chatgpt_turbo_st(message: Message, state: FSMContext):
+async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
     if 'Закончить разговор❌' in message.text:
         await cancel_state(state)
         await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
         return
+    await bot.send_chat_action(message.from_user.id, 'typing')
     data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
