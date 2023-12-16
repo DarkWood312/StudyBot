@@ -87,6 +87,8 @@ class Formulas(StatesGroup):
 class AiState(StatesGroup):
     choose = State()
     chatgpt_turbo = State()
+    midjourney_v4 = State()
+    playground_v2 = State()
 
 
 class IsAdmin(Filter):
@@ -351,13 +353,21 @@ async def state_Test_credentials(message: Message, state: FSMContext):
 async def AiState_choose(message: Message, state: FSMContext):
     if 'Отмена❌' in message.text:
         await cancel_state(state)
+        await message.delete()
         await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
     else:
         markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
-
+        await message.delete()
         if 'ChatGPT-Turbo' in message.text:
-            await message.answer('Чат создан.', reply_markup=markup.as_markup(resize_keyboard=True))
+            await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
+            await message.delete()
             await state.set_state(AiState.chatgpt_turbo)
+        elif 'Midjourney-V4' in message.text:
+            await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.midjourney_v4)
+        elif 'Playground-V2' in message.text:
+            await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.playground_v2)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -367,6 +377,7 @@ async def AiState_choose(message: Message, state: FSMContext):
 async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
     if 'Закончить разговор❌' in message.text:
         await cancel_state(state)
+        await message.delete()
         await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
         return
     await bot.send_chat_action(message.from_user.id, 'typing')
@@ -378,7 +389,35 @@ async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
             await state.update_data({'chatCode': new_chatcode})
         else:
             resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
-        await message.answer(f'💬<b>:</b>{html.quote(resp)}')
+        await message.answer(f'💬<b>:</b> <code>{html.quote(resp)}</code>', parse_mode=ParseMode.HTML)
+
+
+@dp.message(AiState.midjourney_v4)
+async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
+    if 'Закончить разговор❌' in message.text:
+        await cancel_state(state)
+        await message.delete()
+        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+        return
+    await bot.send_chat_action(message.from_user.id, 'upload_photo')
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        img = await ai.midjourney_v4(message.text, True)
+    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Сгенерированное изображение🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+
+
+@dp.message(AiState.playground_v2)
+async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
+    if 'Закончить разговор❌' in message.text:
+        await cancel_state(state)
+        await message.delete()
+        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+        return
+    await bot.send_chat_action(message.from_user.id, 'upload_photo')
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        img = await ai.playgroundv2(message.text, convert_to_bytes=True)
+    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Сгенерированное изображение🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
 
 
 @dp.message(Command('base_converter'))
@@ -901,9 +940,6 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=await menu_markup(message.from_user.id))
-    elif 'закончить' in low:
-        await message.delete()
-        await main_message(message)
     elif len(low) >= 50:
         text_data = await text_analysis(message.text, user_id=message.from_user.id)
         aow = text_data['amount_of_words']
@@ -968,6 +1004,11 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                     print(e)
             elif 'ai' in low:
                 await ai_command(message=message, state=state, command=CommandObject(prefix='/', command='ai', mention=None))
+                await message.delete()
+            elif 'закончить' or 'отмена' in low:
+                await message.delete()
+                await cancel_state(state)
+                await main_message(message)
             else:
                 loading_msg = await message.answer(
                     f"<i>Поиск формул по запросу </i>'<code>{html.quote(message.text)}</code>'...",
@@ -1042,19 +1083,14 @@ async def callback(call: CallbackQuery, state: FSMContext):
 
         await call.message.answer_document(db.doc_ids[param])
 
-    # elif call.data == 'algm':
-    #     await call.message.answer_document(db.doc_ids['algm'])
     elif call.data.startswith(tuple(['2', '3', '4', '5'])):
         call.message.text = call.data
-        # await call.message.answer(call.message.text)
         await average_mark(message=call.message, state=state)
     await call.answer()
 
 
 async def main():
-    # Initialize Bot instance with a default parse mode which will be passed to all API calls
     bot = Bot(token, parse_mode=ParseMode.HTML)
-    # And the run events dispatching
     await dp.start_polling(bot)
 
 

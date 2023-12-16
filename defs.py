@@ -1,3 +1,4 @@
+import base64
 import io
 import itertools
 import string
@@ -207,3 +208,17 @@ class AI:
                 out = await r.json()
 
         return out['message'], out['chatCode']
+
+    async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
+        async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', params={'text': prompt}) as r:
+            img = (await r.json())['image_base64']
+            if convert_to_bytes:
+                img = base64.b64decode(img)
+            return img
+
+    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ', convert_to_bytes: bool = False) -> str | bytes:
+        async with self.session.post('https://api.futureforge.dev/image/playgroundv2', params={'prompt': prompt, 'negative_prompt': negative_prompt}) as r:
+            img = (await r.json())['image_base64']
+            if convert_to_bytes:
+                img = base64.b64decode(img)
+            return img
