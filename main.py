@@ -373,7 +373,7 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await state.set_state(AiState.playground_v2)
         elif 'Gemini-Pro' in message.text:
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
-            await state.set_state(AiState.chatgpt_turbo)
+            await state.set_state(AiState.gemini_pro)
         else:
             await message.answer('Нажмите кнопку')
             return
