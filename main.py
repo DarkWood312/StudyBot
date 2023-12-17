@@ -392,7 +392,10 @@ async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
             await state.update_data({'chatCode': new_chatcode})
         else:
             resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
-        await message.answer(f'💬<b>:</b> <code>{html.quote(resp)}</code>', parse_mode=ParseMode.HTML)
+        try:
+            await message.answer(f'💬*:* {resp}', parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(AiState.gemini_pro)
@@ -408,7 +411,10 @@ async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
             await state.update_data({'chatCode': new_chatcode})
         else:
             resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
-        await message.answer(f'💬<b>:</b> <code>{html.quote(resp)}</code>', parse_mode=ParseMode.HTML)
+        try:
+            await message.answer(f'💬*:* {resp}', parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(AiState.midjourney_v4)
