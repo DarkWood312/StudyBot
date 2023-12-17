@@ -193,6 +193,13 @@ class IndigoMath:
             return await self.get_formulas(pages_to_parse)
 
 
+async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: str = 'typing'):
+    if 'Закончить разговор❌' in message.text:
+        return False
+    await bot.send_chat_action(message.from_user.id, action)
+    return True
+
+
 class AI:
     def __init__(self, session: aiohttp.client.ClientSession):
         self.session = session
@@ -209,6 +216,18 @@ class AI:
 
         return out['message'], out['chatCode']
 
+    async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
+        if chatcode is None:
+            async with self.session.post('https://api.futureforge.dev/gemini_pro/create',
+                                         json={'message': message}) as r:
+                out = await r.json()
+        else:
+            async with self.session.post('https://api.futureforge.dev/gemini_pro/chat',
+                                         json={'message': message, 'chatCode': chatcode}) as r:
+                out = await r.json()
+
+        return out['message'], out['chatCode']
+
     async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', params={'text': prompt}) as r:
             img = (await r.json())['image_base64']
@@ -216,8 +235,10 @@ class AI:
                 img = base64.b64decode(img)
             return img
 
-    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ', convert_to_bytes: bool = False) -> str | bytes:
-        async with self.session.post('https://api.futureforge.dev/image/playgroundv2', params={'prompt': prompt, 'negative_prompt': negative_prompt}) as r:
+    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ',
+                           convert_to_bytes: bool = False) -> str | bytes:
+        async with self.session.post('https://api.futureforge.dev/image/playgroundv2',
+                                     params={'prompt': prompt, 'negative_prompt': negative_prompt}) as r:
             img = (await r.json())['image_base64']
             if convert_to_bytes:
                 img = base64.b64decode(img)

@@ -25,7 +25,7 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                   num_base_converter,
-                  nums_from_input, IndigoMath, AI)
+                  nums_from_input, IndigoMath, AI, ai_func_start)
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -87,6 +87,7 @@ class Formulas(StatesGroup):
 class AiState(StatesGroup):
     choose = State()
     chatgpt_turbo = State()
+    gemini_pro = State()
     midjourney_v4 = State()
     playground_v2 = State()
 
@@ -155,7 +156,7 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
 @dp.message(Command('cancel'))
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
-    msg = await message.answer('Действие отменено.')
+    msg = await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
     await message.delete()
 
     await asyncio.sleep(2)
@@ -356,7 +357,8 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
     if 'Отмена❌' in message.text:
         await cancel_state(state)
         await message.delete()
-        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+        # await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+        await cancel(message, state)
     else:
         markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
         await message.delete()
@@ -369,6 +371,9 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         elif 'Playground-V2' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.playground_v2)
+        elif 'Gemini-Pro' in message.text:
+            await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.chatgpt_turbo)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -376,12 +381,9 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.chatgpt_turbo)
 async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
-    if 'Закончить разговор❌' in message.text:
-        await cancel_state(state)
-        await message.delete()
-        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
         return
-    await bot.send_chat_action(message.from_user.id, 'typing')
     data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
@@ -393,14 +395,27 @@ async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
         await message.answer(f'💬<b>:</b> <code>{html.quote(resp)}</code>', parse_mode=ParseMode.HTML)
 
 
+@dp.message(AiState.gemini_pro)
+async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
+        return
+    data = await state.get_data()
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        if 'chatCode' not in data:
+            resp, new_chatcode = await ai.gemini_pro(message.text)
+            await state.update_data({'chatCode': new_chatcode})
+        else:
+            resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
+        await message.answer(f'💬<b>:</b> <code>{html.quote(resp)}</code>', parse_mode=ParseMode.HTML)
+
+
 @dp.message(AiState.midjourney_v4)
 async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
-    if 'Закончить разговор❌' in message.text:
-        await cancel_state(state)
-        await message.delete()
-        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
         return
-    await bot.send_chat_action(message.from_user.id, 'upload_photo')
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         img = await ai.midjourney_v4(message.text, True)
@@ -409,12 +424,9 @@ async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.playground_v2)
 async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
-    if 'Закончить разговор❌' in message.text:
-        await cancel_state(state)
-        await message.delete()
-        await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
         return
-    await bot.send_chat_action(message.from_user.id, 'upload_photo')
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         img = await ai.playgroundv2(message.text, convert_to_bytes=True)
@@ -558,7 +570,8 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
             parse_mode=ParseMode.MARKDOWN)
     elif call.data == 'cancel':
         await cancel_state(state)
-        await call.message.answer('Действие отменено')
+        # await call.message.answer('Действие отменено')
+        await cancel(call.message, state)
     else:
         await cancel_state(state)
         await callback(call, state)
@@ -1005,6 +1018,7 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                 except Exception as e:
                     print(e)
             elif 'ai' in low:
+                await cancel_state(state)
                 await ai_command(message=message, state=state, command=CommandObject(prefix='/', command='ai', mention=None))
                 await message.delete()
             elif 'закончить' or 'отмена' in low:
@@ -1067,7 +1081,8 @@ async def other_content(message: Message):
 async def callback(call: CallbackQuery, state: FSMContext):
     if call.data == 'cancel':
         await cancel_state(state)
-        await call.message.answer('Действие отменено.')
+        # await call.message.answer('Действие отменено.')
+        await cancel(call.message, state)
     elif call.data.startswith('alias_del'):
         param = call.data.replace('alias_del-', '')
 
