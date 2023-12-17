@@ -156,7 +156,7 @@ async def state_SendMessage_message_callback(call: CallbackQuery, state: FSMCont
 @dp.message(Command('cancel'))
 async def cancel(message: types.Message, state: FSMContext):
     await cancel_state(state)
-    msg = await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
+    msg = await message.answer('Возврат в меню.', reply_markup=await menu_markup(message.from_user.id))
     await message.delete()
 
     # await asyncio.sleep(2)
