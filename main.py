@@ -29,7 +29,7 @@ from defs import (cancel_state, main_message, orthoepy_word_formatting, command_
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
-from config import token, sql, proxy
+from config import token, sql
 
 router = Router()
 dp = Dispatcher(storage=MemoryStorage())
@@ -90,6 +90,7 @@ class AiState(StatesGroup):
     gemini_pro = State()
     midjourney_v4 = State()
     playground_v2 = State()
+    stable_diffusion_xl_turbo = State()
 
 
 class IsAdmin(Filter):
@@ -374,6 +375,10 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         elif 'Gemini-Pro' in message.text:
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.gemini_pro)
+        elif 'Stable Diffusion XL Turbo' in message.text:
+            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.stable_diffusion_xl_turbo)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -393,9 +398,9 @@ async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
         else:
             resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
         try:
-            await message.answer(f'💬*:* {resp}', parse_mode=ParseMode.MARKDOWN)
-        except Exception as e:
-            await message.answer(str(e))
+            await message.answer(f'*ChatGPT-Turbo💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
+        except:
+            await message.answer(f'<b>ChatGPT-Turbo💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
 
 
 @dp.message(AiState.gemini_pro)
@@ -412,31 +417,42 @@ async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
         else:
             resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
         try:
-            await message.answer(f'💬*:* {resp}', parse_mode=ParseMode.MARKDOWN)
-        except Exception as e:
-            await message.answer(str(e))
+            await message.answer(f'*Gemini-Pro💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
+        except:
+            await message.answer(f'<b>Gemini-Pro💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
 
 
 @dp.message(AiState.midjourney_v4)
 async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
+    if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         img = await ai.midjourney_v4(message.text, True)
-    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Сгенерированное изображение🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
 
 
 @dp.message(AiState.playground_v2)
 async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
+    if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         img = await ai.playgroundv2(message.text, convert_to_bytes=True)
-    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Сгенерированное изображение🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+
+
+@dp.message(AiState.stable_diffusion_xl_turbo)
+async def stable_diffusion_xl_turbo(message: Message, state: FSMContext, bot: Bot):
+    if not await ai_func_start(message, state, bot, 'upload_photo'):
+        await cancel(message, state)
+        return
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        img = await ai.stable_diffusion_xl_turbo(message.text, convert_to_bytes=True)
+    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
 
 
 @dp.message(Command('base_converter'))
@@ -1027,7 +1043,7 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                 await cancel_state(state)
                 await ai_command(message=message, state=state, command=CommandObject(prefix='/', command='ai', mention=None))
                 await message.delete()
-            elif 'закончить' or 'отмена' in low:
+            elif 'закончить' in low or 'отмена' in low:
                 await message.delete()
                 await cancel_state(state)
                 await main_message(message)

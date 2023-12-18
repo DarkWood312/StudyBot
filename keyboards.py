@@ -22,9 +22,11 @@ async def ai_markup():
     chatgpt_turbo_button = KeyboardButton(text='ChatGPT-Turbo💬')
     midjourney_v4_button = KeyboardButton(text='Midjourney-V4🦋')
     playground_v2_button = KeyboardButton(text='Playground-V2🦋')
+    stable_diffusion_xl_turbo_button = KeyboardButton(text='Stable Diffusion XL Turbo🦋')
     gemini_pro_button = KeyboardButton(text='Gemini-Pro💬')
     markup.row(chatgpt_turbo_button, gemini_pro_button)
     markup.row(midjourney_v4_button, playground_v2_button)
+    markup.row(stable_diffusion_xl_turbo_button)
     markup.row(KeyboardButton(text='Отмена❌'))
     return markup.as_markup(resize_keyboard=True)
 
