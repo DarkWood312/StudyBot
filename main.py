@@ -91,6 +91,7 @@ class AiState(StatesGroup):
     midjourney_v4 = State()
     playground_v2 = State()
     stable_diffusion_xl_turbo = State()
+    claude = State()
 
 
 class IsAdmin(Filter):
@@ -367,10 +368,12 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.chatgpt_turbo)
         elif 'Midjourney-V4' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
+            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.midjourney_v4)
         elif 'Playground-V2' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать (на английском): ', reply_markup=markup.as_markup(resize_keyboard=True))
+            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.playground_v2)
         elif 'Gemini-Pro' in message.text:
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
@@ -379,6 +382,9 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
                                  reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.stable_diffusion_xl_turbo)
+        elif 'Claude' in message.text:
+            await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
+            await state.set_state(AiState.claude)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -437,7 +443,8 @@ async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
         ai = AI(session)
         try:
             img = await ai.midjourney_v4(message.text, True)
-            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+            await message.answer_photo(BufferedInputFile(img, message.text),
+                                       caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
         except Exception as e:
             await message.answer(str(e))
 
@@ -451,13 +458,14 @@ async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
         ai = AI(session)
         try:
             img = await ai.playgroundv2(message.text, convert_to_bytes=True)
-            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+            await message.answer_photo(BufferedInputFile(img, message.text),
+                                       caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
         except Exception as e:
             await message.answer(str(e))
 
 
 @dp.message(AiState.stable_diffusion_xl_turbo)
-async def stable_diffusion_xl_turbo(message: Message, state: FSMContext, bot: Bot):
+async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
     if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
@@ -465,9 +473,32 @@ async def stable_diffusion_xl_turbo(message: Message, state: FSMContext, bot: Bo
         ai = AI(session)
         try:
             img = await ai.stable_diffusion_xl_turbo(message.text, convert_to_bytes=True)
-            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+            await message.answer_photo(BufferedInputFile(img, message.text),
+                                       caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
         except Exception as e:
             await message.answer(str(e))
+
+
+@dp.message(AiState.claude)
+async def claude_st(message: Message, state: FSMContext, bot: Bot):
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
+        return
+    data = await state.get_data()
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        try:
+            if 'chatCode' not in data:
+                resp, new_chatcode = await ai.claude(message.text)
+                await state.update_data({'chatCode': new_chatcode})
+            else:
+                resp = (await ai.claude(message.text, data['chatCode']))[0]
+            try:
+                await message.answer(f'*Claude💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
+            except:
+                await message.answer(f'<b>Claude💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+        except aiohttp.ContentTypeError as e:
+            await message.answer(e.message)
 
 
 @dp.message(Command('base_converter'))
@@ -1056,7 +1087,8 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                     print(e)
             elif 'ai' in low:
                 await cancel_state(state)
-                await ai_command(message=message, state=state, command=CommandObject(prefix='/', command='ai', mention=None))
+                await ai_command(message=message, state=state,
+                                 command=CommandObject(prefix='/', command='ai', mention=None))
                 await message.delete()
             elif 'закончить' in low or 'отмена' in low:
                 await message.delete()
