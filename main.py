@@ -392,15 +392,18 @@ async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        if 'chatCode' not in data:
-            resp, new_chatcode = await ai.chatgpt_turbo(message.text)
-            await state.update_data({'chatCode': new_chatcode})
-        else:
-            resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
         try:
-            await message.answer(f'*ChatGPT-Turbo💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-        except:
-            await message.answer(f'<b>ChatGPT-Turbo💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+            if 'chatCode' not in data:
+                resp, new_chatcode = await ai.chatgpt_turbo(message.text)
+                await state.update_data({'chatCode': new_chatcode})
+            else:
+                resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
+            try:
+                await message.answer(f'*ChatGPT-Turbo💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
+            except:
+                await message.answer(f'<b>ChatGPT-Turbo💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+        except aiohttp.ContentTypeError as e:
+            await message.answer(e.message)
 
 
 @dp.message(AiState.gemini_pro)
@@ -411,15 +414,18 @@ async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        if 'chatCode' not in data:
-            resp, new_chatcode = await ai.gemini_pro(message.text)
-            await state.update_data({'chatCode': new_chatcode})
-        else:
-            resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
         try:
-            await message.answer(f'*Gemini-Pro💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-        except:
-            await message.answer(f'<b>Gemini-Pro💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+            if 'chatCode' not in data:
+                resp, new_chatcode = await ai.gemini_pro(message.text)
+                await state.update_data({'chatCode': new_chatcode})
+            else:
+                resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
+            try:
+                await message.answer(f'*Gemini-Pro💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
+            except:
+                await message.answer(f'<b>Gemini-Pro💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+        except aiohttp.ContentTypeError as e:
+            await message.answer(e.message)
 
 
 @dp.message(AiState.midjourney_v4)
@@ -429,8 +435,11 @@ async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
         return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        img = await ai.midjourney_v4(message.text, True)
-    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        try:
+            img = await ai.midjourney_v4(message.text, True)
+            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(AiState.playground_v2)
@@ -440,8 +449,11 @@ async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
         return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        img = await ai.playgroundv2(message.text, convert_to_bytes=True)
-    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        try:
+            img = await ai.playgroundv2(message.text, convert_to_bytes=True)
+            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(AiState.stable_diffusion_xl_turbo)
@@ -451,8 +463,11 @@ async def stable_diffusion_xl_turbo(message: Message, state: FSMContext, bot: Bo
         return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        img = await ai.stable_diffusion_xl_turbo(message.text, convert_to_bytes=True)
-    await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        try:
+            img = await ai.stable_diffusion_xl_turbo(message.text, convert_to_bytes=True)
+            await message.answer_photo(BufferedInputFile(img, message.text), caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(Command('base_converter'))
