@@ -28,8 +28,11 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
         return
     data = await state.get_data()
 
-    if message.content_type == 'photo':
-        file_id = message.photo[-1].file_id
+    if message.content_type in ('photo', 'document'):
+        if message.content_type == 'photo':
+            file_id = message.photo[-1].file_id
+        else:
+            file_id = message.document.file_id
         get_path = f'https://api.telegram.org/bot{token}/getFile?file_id={file_id}'
 
         async with session.get(get_path) as response:
