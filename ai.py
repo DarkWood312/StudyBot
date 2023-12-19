@@ -19,31 +19,35 @@ async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: s
     return True
 
 
-async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str, session: aiohttp.client.ClientSession):
+async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str,
+                    session: aiohttp.client.ClientSession):
     text = message.text or message.caption or ''
 
     if not await ai_func_start(message, state, bot, 'typing'):
         await cancel(message, state)
         return
     data = await state.get_data()
-    file_url = ''
 
-    if message.content_type in ('photo', 'document'):
-        if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
-        else:
-            file_id = message.document.file_id
+    if message.content_type == 'photo':
+        file_id = message.photo[-1].file_id
         get_path = f'https://api.telegram.org/bot{token}/getFile?file_id={file_id}'
+
         async with session.get(get_path) as response:
             file_path = (await response.json())['result']['file_path']
         file_url = f'https://api.telegram.org/file/bot{token}/{file_path}'
 
+        async with session.get(file_url) as response:
+            bytes_file = await response.read()
+
+        async with session.post('https://api.imgur.com/3/upload', data={'image': bytes_file}) as response:
+            imgur_file_url = (await response.json())['data']['link']
+
     try:
         if 'chatCode' not in data:
-            resp, new_chatcode = await ai_method(text + f' {file_url}')
+            resp, new_chatcode = await ai_method(text + f' {imgur_file_url}')
             await state.update_data({'chatCode': new_chatcode})
         else:
-            resp = (await ai_method(text + f' {file_url}', data['chatCode']))[0]
+            resp = (await ai_method(text + f' {imgur_file_url}', data['chatCode']))[0]
         try:
             await message.answer(f'*{ai_name}💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
         except Exception:
