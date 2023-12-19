@@ -27,9 +27,8 @@ from defs import (cancel_state, main_message, orthoepy_word_formatting, command_
                   num_base_converter,
                   nums_from_input, IndigoMath)
 
-from ai import ai_func_start, AI, msg_ai_tg, image_ai_tg
+from ai import AI, msg_ai_tg, image_ai_tg
 
-from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
 from config import token, sql
@@ -360,8 +359,8 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     await bot.delete_message(message.chat.id, data['delete_this_msg'].message_id)
     if 'Отмена❌' in message.text:
-        await cancel_state(state)
-        await message.delete()
+        # await cancel_state(state)
+        # await message.delete()
         # await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
         await cancel(message, state)
     else:
