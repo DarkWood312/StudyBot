@@ -25,7 +25,10 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                   num_base_converter,
-                  nums_from_input, IndigoMath, AI, ai_func_start)
+                  nums_from_input, IndigoMath)
+
+from ai import ai_func_start, AI, msg_ai_tg, image_ai_tg
+
 from gdz import GDZ
 from modern_gdz import ModernGDZ
 import db
@@ -392,113 +395,44 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.chatgpt_turbo)
 async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
-        await cancel(message, state)
-        return
-    data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            if 'chatCode' not in data:
-                resp, new_chatcode = await ai.chatgpt_turbo(message.text)
-                await state.update_data({'chatCode': new_chatcode})
-            else:
-                resp = (await ai.chatgpt_turbo(message.text, data['chatCode']))[0]
-            try:
-                await message.answer(f'*ChatGPT-Turbo💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-            except:
-                await message.answer(f'<b>ChatGPT-Turbo💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
-        except aiohttp.ContentTypeError as e:
-            await message.answer(e.message)
+        await msg_ai_tg(message, state, bot, ai.chatgpt_turbo, 'ChatGPT-Turbo', session)
 
 
 @dp.message(AiState.gemini_pro)
 async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
-        await cancel(message, state)
-        return
-    data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            if 'chatCode' not in data:
-                resp, new_chatcode = await ai.gemini_pro(message.text)
-                await state.update_data({'chatCode': new_chatcode})
-            else:
-                resp = (await ai.gemini_pro(message.text, data['chatCode']))[0]
-            try:
-                await message.answer(f'*Gemini-Pro💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-            except:
-                await message.answer(f'<b>Gemini-Pro💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
-        except aiohttp.ContentTypeError as e:
-            await message.answer(e.message)
+        await msg_ai_tg(message, state, bot, ai.gemini_pro, 'Gemini-Pro', session)
 
 
 @dp.message(AiState.midjourney_v4)
 async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'upload_photo'):
-        await cancel(message, state)
-        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            img = await ai.midjourney_v4(message.text, True)
-            await message.answer_photo(BufferedInputFile(img, message.text),
-                                       caption=f'<b>Midjourney-V4🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
-        except Exception as e:
-            await message.answer(str(e))
+        await image_ai_tg(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
 
 
 @dp.message(AiState.playground_v2)
 async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'upload_photo'):
-        await cancel(message, state)
-        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            img = await ai.playgroundv2(message.text, convert_to_bytes=True)
-            await message.answer_photo(BufferedInputFile(img, message.text),
-                                       caption=f'<b>Playground-V2🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
-        except Exception as e:
-            await message.answer(str(e))
+        await image_ai_tg(message, state, bot, ai.playgroundv2, 'Playground-V2')
 
 
 @dp.message(AiState.stable_diffusion_xl_turbo)
 async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'upload_photo'):
-        await cancel(message, state)
-        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            img = await ai.stable_diffusion_xl_turbo(message.text, convert_to_bytes=True)
-            await message.answer_photo(BufferedInputFile(img, message.text),
-                                       caption=f'<b>Stable Diffusion XL Turbo🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
-        except Exception as e:
-            await message.answer(str(e))
+        await image_ai_tg(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
 
 
 @dp.message(AiState.claude)
 async def claude_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
-        await cancel(message, state)
-        return
-    data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        try:
-            if 'chatCode' not in data:
-                resp, new_chatcode = await ai.claude(message.text)
-                await state.update_data({'chatCode': new_chatcode})
-            else:
-                resp = (await ai.claude(message.text, data['chatCode']))[0]
-            try:
-                await message.answer(f'*Claude💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-            except:
-                await message.answer(f'<b>Claude💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
-        except aiohttp.ContentTypeError as e:
-            await message.answer(e.message)
+        await msg_ai_tg(message, state, bot, ai.claude, 'Claude', session)
 
 
 @dp.message(Command('base_converter'))
@@ -1024,6 +958,7 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=await menu_markup(message.from_user.id))
     elif len(low) >= 50:
+        await bot.send_chat_action(message.chat.id, 'typing')
         text_data = await text_analysis(message.text, user_id=message.from_user.id)
         aow = text_data['amount_of_words']
         aos = text_data['amount_of_sentences']
@@ -1126,7 +1061,7 @@ async def other_content_admin(message: Message):
     if cp == 'sticker':
         await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
     elif cp == 'photo':
-        await message.answer(hcode(message.photo[0].file_id), parse_mode=ParseMode.HTML)
+        await message.answer(hcode(message.photo[-1].file_id), parse_mode=ParseMode.HTML)
     elif cp == 'audio':
         await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
     elif cp == 'document':
