@@ -1,4 +1,4 @@
-aiogram==3.1.1
+aiogram==3.2.0
 requests==2.31.0
 beautifulsoup4==4.12.2
 lxml==4.9.3
@@ -10,5 +10,5 @@ asyncpg==0.28.0
 pymorphy3==1.2.1
 nltk==3.8.1
 wordcloud==1.9.2
-aiohttp==3.8.6
+aiohttp==3.9.1
 googletrans==4.0.0rc1
