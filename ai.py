@@ -6,6 +6,7 @@ from aiogram import Bot, html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
+from googletrans import Translator
 
 from config import futureforge_api, token
 from defs import cancel_state
@@ -65,8 +66,13 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         await cancel(message, state)
         return
     try:
-        img = await ai_method(message.text, convert_to_bytes=True)
-        await message.answer_photo(BufferedInputFile(bytes(img), message.text),
+        text = message.text
+        translator = Translator()
+        source_lang = translator.detect(text).lang
+        if source_lang != 'en':
+            text = translator.translate(text, 'en', source_lang).text
+        img = await ai_method(text, convert_to_bytes=True)
+        await message.answer_photo(BufferedInputFile(img, message.text),
                                    caption=f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
     except Exception as e:
         await message.answer(html.quote(str(e)))

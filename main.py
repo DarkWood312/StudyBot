@@ -370,18 +370,18 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.chatgpt_turbo)
         elif 'Midjourney-V4' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+            await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.midjourney_v4)
         elif 'Playground-V2' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+            await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.playground_v2)
         elif 'Gemini-Pro' in message.text:
-            await message.answer('Чат создан. Напишите запрос и/или отправьте фотографию', reply_markup=markup.as_markup(resize_keyboard=True))
+            await message.answer('Чат создан. Напишите запрос и/или отправьте фотографию: ', reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.gemini_pro)
         elif 'Stable Diffusion XL Turbo' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать (на английском): ',
+            await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True))
             await state.set_state(AiState.stable_diffusion_xl_turbo)
         elif 'Claude' in message.text:
