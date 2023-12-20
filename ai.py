@@ -69,7 +69,8 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         await message.answer_photo(BufferedInputFile(img, message.text),
                                    caption=f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
     except Exception as e:
-        await message.answer(str(e))
+        print(e)
+        await message.answer(html.quote(str(e)))
 
 
 async def cancel(message: Message, state: FSMContext):
