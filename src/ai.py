@@ -54,8 +54,9 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
         else:
             resp = (await ai_method(text + f' {imgur_file_url}', data['chatCode']))[0]
         try:
-            await message.answer(f'*{ai_name}💬:* {resp}', parse_mode=ParseMode.MARKDOWN)
-        except Exception:
+            mresp = resp.replace('_', r'\_').replace('[', r'\[').replace(']', r'\]')
+            await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
             await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))

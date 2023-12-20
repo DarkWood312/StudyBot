@@ -85,7 +85,7 @@ async def state_SendMessage_message(message: types.Message, state: FSMContext):
                     parse_mode=ParseMode.HTML)
         except Exception as e:
             await message.answer('Error. BotBlocked')
-            await message.answer(e)
+            await message.answer(str(e))
     await message.answer('Закончить монолог?', reply_markup=InlineKeyboardBuilder().row(
         InlineKeyboardButton(text='Закончить', callback_data='stop_monolog')).as_markup())
 
