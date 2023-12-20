@@ -33,7 +33,7 @@ import db
 from config import token, sql
 from states import *
 
-router = Router()
+# router = Router()
 dp = Dispatcher(storage=MemoryStorage())
 
 
