@@ -10,12 +10,11 @@ from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, types, F, Router, html
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument, InputFile, FSInputFile, BufferedInputFile, KeyboardButton
+    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.utils.markdown import hbold, hcode, hlink, hide_link, hitalic
+from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from exceptions import NumDontExistError, BaseDontExistError
@@ -32,68 +31,10 @@ from ai import AI, msg_ai_tg, image_ai_tg
 from modern_gdz import ModernGDZ
 import db
 from config import token, sql
+from states import *
 
 router = Router()
 dp = Dispatcher(storage=MemoryStorage())
-
-
-class Marks(StatesGroup):
-    is_continue = State()
-    continue_ = State()
-
-
-class NetSchoolState(StatesGroup):
-    login = State()
-    password = State()
-
-
-class SendMessage(StatesGroup):
-    receiver = State()
-    message = State()
-
-
-class Bind(StatesGroup):
-    picked_source = State()
-    picked_grade = State()
-    picked_subject = State()
-    picked_book = State()
-    picked_alias = State()
-
-
-class Orthoepy(StatesGroup):
-    main = State()
-
-
-class Test(StatesGroup):
-    credentials = State()
-
-
-class Aliases(StatesGroup):
-    main = State()
-
-
-class WordCloud(StatesGroup):
-    settings_input = State()
-
-
-class BaseConverter(StatesGroup):
-    num = State()
-    base = State()
-
-
-class Formulas(StatesGroup):
-    formulas_list = State()
-    formulas_out = State()
-
-
-class AiState(StatesGroup):
-    choose = State()
-    chatgpt_turbo = State()
-    gemini_pro = State()
-    midjourney_v4 = State()
-    playground_v2 = State()
-    stable_diffusion_xl_turbo = State()
-    claude = State()
 
 
 class IsAdmin(Filter):

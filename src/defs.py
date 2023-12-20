@@ -1,30 +1,23 @@
-import base64
 import io
 import itertools
 import string
 import typing
 
-import aiogram
 import aiohttp
-import requests
-from aiogram import html, Bot
+from aiogram import html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.utils.media_group import MediaGroupBuilder
 from bs4 import BeautifulSoup
 from nltk import word_tokenize, sent_tokenize
 from pymorphy3 import MorphAnalyzer
-from emoji import emojize
-
-from random import shuffle
 
 from nltk.corpus import stopwords
 from wordcloud import WordCloud
 
 import db
-from config import sql, proxy, futureforge_api
+from config import sql, proxy
 from exceptions import NumDontExistError, BaseDontExistError
 from keyboards import menu_markup
 

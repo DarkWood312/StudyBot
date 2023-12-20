@@ -4,4 +4,4 @@ __pycache__/
 desktop.ini
 Dockerfile
 venv
-test_settings.txt
+src/test_settings.txt
