@@ -11,7 +11,7 @@ from aiogram.types import Message, BufferedInputFile
 from googletrans import Translator
 
 from config import futureforge_api, token
-from defs import cancel_state
+from defs import cancel_state, get_file_direct_link
 from keyboards import menu_markup
 
 
@@ -40,12 +40,7 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
             file_tid = message.document.file_id
         file = await bot.download(file_tid)
         file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
-        form_data = aiohttp.FormData()
-        form_data.add_field('fileToUpload', file.read(), filename=file_name)
-        form_data.add_field('time', '1h')
-        form_data.add_field('reqtype', 'fileupload')
-        async with session.post('https://litterbox.catbox.moe/resources/internals/api.php', data=form_data) as response:
-            file_direct_link = await response.text()
+        file_direct_link = await get_file_direct_link(file=file, session=session, filename=file_name, expires_in='1h')
         logging.info(f'created image with link --> {file_direct_link}')
 
     try:

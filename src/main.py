@@ -24,7 +24,7 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                   num_base_converter,
-                  nums_from_input, IndigoMath)
+                  nums_from_input, IndigoMath, get_file_direct_link)
 
 from ai import AI, msg_ai_tg, image_ai_tg
 
@@ -993,31 +993,53 @@ async def group(message: Message):
     await message.answer('hi group')
 
 
-@dp.message(IsAdmin())
-async def other_content_admin(message: Message):
-    cp = message.content_type
-    await message.answer(cp)
-    if cp == 'sticker':
-        await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'photo':
-        await message.answer(hcode(message.photo[-1].file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'audio':
-        await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'document':
-        await message.answer(hcode(message.document.file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'video':
-        await message.answer(hcode(message.video.file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'video_note':
-        await message.answer(hcode(message.video_note.file_id), parse_mode=ParseMode.HTML)
-    elif cp == 'voice':
-        await message.answer(hcode(message.voice.file_id), parse_mode=ParseMode.HTML)
-    else:
-        await message.answer('undefined content_type')
+# @dp.message(IsAdmin())
+# async def other_content_admin(message: Message):
+#     cp = message.content_type
+#     await message.answer(cp)
+#     if cp == 'sticker':
+#         await message.answer(hcode(message.sticker.file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'photo':
+#         await message.answer(hcode(message.photo[-1].file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'audio':
+#         await message.answer(hcode(message.audio.file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'document':
+#         await message.answer(hcode(message.document.file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'video':
+#         await message.answer(hcode(message.video.file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'video_note':
+#         await message.answer(hcode(message.video_note.file_id), parse_mode=ParseMode.HTML)
+#     elif cp == 'voice':
+#         await message.answer(hcode(message.voice.file_id), parse_mode=ParseMode.HTML)
+#     else:
+#         await message.answer('undefined content_type')
 
 
 @dp.message()
-async def other_content(message: Message):
-    await message.answer('Я еще не настолько умный')
+async def other_content(message: Message, bot: Bot):
+    # await message.answer('Я еще не настолько умный')
+    cp = message.content_type
+    if cp == 'photo':
+        file_tid = message.photo[-1].file_id
+    elif cp == 'audio':
+        file_tid = message.audio.file_id
+    elif cp == 'document':
+        file_tid = message.document.file_id
+    elif cp == 'video':
+        file_tid = message.video.file_id
+    elif cp == 'video_note':
+        file_tid = message.video_note.file_id
+    elif cp == 'voice':
+        file_tid = message.voice.file_id
+    else:
+        await message.answer('undefined content_type')
+        return
+
+    await bot.send_chat_action(message.chat.id, 'typing')
+    file = await bot.download(file_tid)
+    file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
+    async with aiohttp.ClientSession() as session:
+        await message.answer(f'<b>Прямая ссылка: </b> {html.quote(await get_file_direct_link(file, session, file_name))}', parse_mode=ParseMode.HTML)
 
 
 @dp.callback_query()
