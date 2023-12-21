@@ -131,6 +131,22 @@ async def nums_from_input(inp: str) -> typing.List[str | int]:
     return ready
 
 
+async def get_file_direct_link(file: typing.BinaryIO, session: aiohttp.client.ClientSession, filename: str = None,
+                               expires_in: str | None = None) -> str:
+    form_data = aiohttp.FormData()
+    form_data.add_field('reqtype', 'fileupload')
+    base_url = 'https://catbox.moe/user/api.php'
+    if expires_in:
+        base_url = 'https://litterbox.catbox.moe/resources/internals/api.php'
+        form_data.add_field('time', expires_in)
+    form_data.add_field('fileToUpload', file.read(), filename=filename if filename else file.name)
+    async with session.post(base_url, data=form_data, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.771 YaBrowser/23.11.2.771 Yowser/2.5 Safari/537.36'}) as r:
+        if not r.status == 200:
+            await get_file_direct_link(file, session, filename, expires_in='72h')
+        else:
+            return await r.text()
+
+
 class IndigoMath:
     def __init__(self, session: aiohttp.client.ClientSession, proxy: str = proxy):
         self.session = session
