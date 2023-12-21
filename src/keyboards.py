@@ -30,7 +30,7 @@ async def ai_markup():
     markup.row(midjourney_v4_button, playground_v2_button)
     markup.row(stable_diffusion_xl_turbo_button)
     markup.row(KeyboardButton(text='Отмена❌'))
-    return markup.as_markup(resize_keyboard=True)
+    return markup.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
 
