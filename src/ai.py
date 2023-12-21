@@ -60,6 +60,8 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
             await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))
+    except Exception as e:
+        await message.answer(html.quote(e))
 
 
 async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str):
@@ -76,7 +78,7 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         await message.answer_photo(BufferedInputFile(img, message.text),
                                    caption=f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
     except Exception as e:
-        await message.answer(html.quote(str(e)))
+        await message.answer(html.quote(e))
 
 
 async def cancel(message: Message, state: FSMContext):
