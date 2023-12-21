@@ -1,5 +1,7 @@
 import base64
 import builtins
+import logging
+from io import BytesIO
 
 import aiohttp
 from aiogram import Bot, html
@@ -28,36 +30,39 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
         await cancel(message, state)
         return
     data = await state.get_data()
-    imgur_file_url = ''
+    file_direct_link = ''
     if message.content_type in ('photo', 'document'):
-        file_id = ''
+
+        file_tid = ''
         if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
+            file_tid = message.photo[-1].file_id
         elif message.content_type == 'document':
-            file_id = message.document.file_id
-        get_path = f'https://api.telegram.org/bot{token}/getFile?file_id={file_id}'
-
-        async with session.get(get_path) as response:
-            file_path = (await response.json())['result']['file_path']
-        file_url = f'https://api.telegram.org/file/bot{token}/{file_path}'
-
-        async with session.get(file_url) as response:
-            bytes_file = await response.read()
-
-        async with session.post('https://api.imgur.com/3/upload', data={'image': bytes_file}) as response:
-            imgur_file_url = (await response.json())['data']['link']
+            file_tid = message.document.file_id
+        file = await bot.download(file_tid)
+        file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
+        form_data = aiohttp.FormData()
+        form_data.add_field('fileToUpload', file.read(), filename=file_name)
+        form_data.add_field('time', '1h')
+        form_data.add_field('reqtype', 'fileupload')
+        async with session.post('https://litterbox.catbox.moe/resources/internals/api.php', data=form_data) as response:
+            file_direct_link = await response.text()
+        logging.info(f'created image with link --> {file_direct_link}')
 
     try:
         if 'chatCode' not in data:
-            resp, new_chatcode = await ai_method(text + f' {imgur_file_url}')
+            resp, new_chatcode = await ai_method(text + f' {file_direct_link}')
             await state.update_data({'chatCode': new_chatcode})
         else:
-            resp = (await ai_method(text + f' {imgur_file_url}', data['chatCode']))[0]
+            resp = (await ai_method(text + f' {file_direct_link}', data['chatCode']))[0]
         try:
-            mresp = resp.replace('_', r'\_').replace('[', r'\[').replace(']', r'\]')
+            mresp = resp.replace('[', r'\[').replace(']', r'\]')
             await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
-        except Exception as e:
-            await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+        except Exception:
+            try:
+                mresp = resp.replace('_', r'\_')
+                await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
+            except Exception:
+                await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))
     except Exception as e:
