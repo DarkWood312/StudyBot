@@ -1020,26 +1020,34 @@ async def other_content(message: Message, bot: Bot):
     # await message.answer('Я еще не настолько умный')
     cp = message.content_type
     if cp == 'photo':
-        file_tid = message.photo[-1].file_id
+        filet = message.photo[-1]
     elif cp == 'audio':
-        file_tid = message.audio.file_id
+        filet = message.audio
     elif cp == 'document':
-        file_tid = message.document.file_id
+        filet = message.document
     elif cp == 'video':
-        file_tid = message.video.file_id
+        filet = message.video
     elif cp == 'video_note':
-        file_tid = message.video_note.file_id
+        filet = message.video_note
     elif cp == 'voice':
-        file_tid = message.voice.file_id
+        filet = message.voice
     else:
         await message.answer('undefined content_type')
         return
 
     await bot.send_chat_action(message.chat.id, 'typing')
-    file = await bot.download(file_tid)
-    file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
+    file_size = filet.file_size / 1024**2
+    if file_size > 20:
+        await message.answer('Невозможно загрузить файл размером больше 20 МБ')
+        return
+    file_size_text = f'{round(file_size, 2)} МБ' if file_size > 1 else f'{round(file_size*1024, 2)} КБ'
+    file = await bot.download(filet.file_id)
+    file_info = await bot.get_file(filet.file_id)
+    file_name = file_info.file_path.split('/')[-1]
+
     async with aiohttp.ClientSession() as session:
-        await message.answer(f'<b>Прямая ссылка: </b> {html.quote(await get_file_direct_link(file, session, file_name))}', parse_mode=ParseMode.HTML)
+        direct_link = await get_file_direct_link(file, session, file_name)
+    await message.answer(f'<b>Прямая ссылка: </b> {html.quote(direct_link)}\n<b>Размер файла: </b><code>{file_size_text}</code>', parse_mode=ParseMode.HTML)
 
 
 @dp.callback_query()
