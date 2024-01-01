@@ -307,7 +307,8 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
         await message.delete()
         if 'ChatGPT-Turbo' in message.text:
-            await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await message.answer('Чат создан. Напишите запрос',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.chatgpt_turbo)
         elif 'Midjourney-V4' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
@@ -318,15 +319,25 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.playground_v2)
         elif 'Gemini-Pro' in message.text:
-            await message.answer('Чат создан. Напишите запрос и/или отправьте фотографию: ', reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await message.answer('Чат создан. Напишите запрос и/или отправьте фотографию: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.gemini_pro)
         elif 'Stable Diffusion XL Turbo' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.stable_diffusion_xl_turbo)
         elif 'Claude' in message.text:
-            await message.answer('Чат создан. Напишите запрос', reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await message.answer('Чат создан. Напишите запрос',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.claude)
+        elif 'Mistral Medium' in message.text:
+            await message.answer('Чат создан. Напишите запрос',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.mistral_medium)
+        elif 'Dall-E 3' in message.text:
+            await message.answer('Напишите то, что хотите сгенерировать: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.dalle3)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -373,6 +384,19 @@ async def claude_st(message: Message, state: FSMContext, bot: Bot):
         ai = AI(session)
         await msg_ai_tg(message, state, bot, ai.claude, 'Claude', session)
 
+
+@dp.message(AiState.mistral_medium)
+async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        await msg_ai_tg(message, state, bot, ai.mistral_medium, 'Mistral Medium', session)
+
+
+@dp.message(AiState.dalle3)
+async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        await image_ai_tg(message, state, bot, ai.dalle3, 'Dall-E 3')
 
 @dp.message(Command('base_converter'))
 async def base_converter(message: Message, state: FSMContext):
@@ -1036,18 +1060,20 @@ async def other_content(message: Message, bot: Bot):
         return
 
     await bot.send_chat_action(message.chat.id, 'typing')
-    file_size = filet.file_size / 1024**2
+    file_size = filet.file_size / 1024 ** 2
     if file_size > 20:
         await message.answer('Невозможно загрузить файл размером больше 20 МБ')
         return
-    file_size_text = f'{round(file_size, 2)} МБ' if file_size > 1 else f'{round(file_size*1024, 2)} КБ'
+    file_size_text = f'{round(file_size, 2)} МБ' if file_size > 1 else f'{round(file_size * 1024, 2)} КБ'
     file = await bot.download(filet.file_id)
     file_info = await bot.get_file(filet.file_id)
     file_name = file_info.file_path.split('/')[-1]
 
     async with aiohttp.ClientSession() as session:
         direct_link = await get_file_direct_link(file, session, file_name)
-    await message.answer(f'<b>Прямая ссылка: </b> {html.quote(direct_link)}\n<b>Размер файла: </b><code>{file_size_text}</code>', parse_mode=ParseMode.HTML)
+    await message.answer(
+        f'<b>Прямая ссылка: </b> {html.quote(direct_link)}\n<b>Размер файла: </b><code>{file_size_text}</code>',
+        parse_mode=ParseMode.HTML)
 
 
 @dp.callback_query()

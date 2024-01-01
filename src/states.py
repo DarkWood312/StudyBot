@@ -58,3 +58,5 @@ class AiState(StatesGroup):
     playground_v2 = State()
     stable_diffusion_xl_turbo = State()
     claude = State()
+    mistral_medium = State()
+    dalle3 = State()

@@ -154,3 +154,25 @@ class AI:
                 out = await r.json()
 
         return out['message'], out['chatCode']
+
+    async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
+        if chatcode is None:
+            async with self.session.post('https://api.futureforge.dev/mistral_medium/create',
+                                         json={'message': message}, headers=self.headers) as r:
+                out = await r.json()
+        else:
+            async with self.session.post('https://api.futureforge.dev/mistral_medium/chat',
+                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers) as r:
+                out = await r.json()
+
+        return out['message'], out['chatCode']
+
+    async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
+        async with self.session.post('https://api.futureforge.dev/image/dalle3',
+                                     json={'prompt': prompt},
+                                     headers=self.headers) as r:
+            # print(await r.text())
+            img = (await r.json())['image_base64']
+            if convert_to_bytes:
+                img = base64.b64decode(img)
+            return img
