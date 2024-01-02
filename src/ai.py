@@ -50,11 +50,11 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
         else:
             resp = (await ai_method(text + f' {file_direct_link}', data['chatCode']))[0]
         try:
-            mresp = resp.replace('[', r'\[').replace(']', r'\]')
+            mresp = resp
             await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
         except Exception:
             try:
-                mresp = resp.replace('_', r'\_')
+                mresp = resp.replace('_', r'\_').replace('[', r'\[').replace(']', r'\]')
                 await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
             except Exception:
                 await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
@@ -75,8 +75,10 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         if source_lang != 'en':
             text = translator.translate(text, 'en', source_lang).text
         img = await ai_method(text, convert_to_bytes=True)
-        await message.answer_photo(BufferedInputFile(img, message.text),
-                                   caption=f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}')
+        file = BufferedInputFile(img, message.text)
+        caption = f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}'
+        await message.answer_photo(file, caption=caption)
+        await message.answer_document(file, caption=caption, disable_notification=True)
     except Exception as e:
         await message.answer(html.quote(e))
 
