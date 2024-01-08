@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import sys
+from datetime import datetime
 from random import shuffle
 
 import aiohttp
@@ -16,6 +17,7 @@ from aiogram.types import InlineKeyboardButton, Message, \
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
+from googletrans import Translator
 
 from exceptions import NumDontExistError, BaseDontExistError
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
@@ -24,13 +26,13 @@ from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_
 
 from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                   num_base_converter,
-                  nums_from_input, IndigoMath, get_file_direct_link)
+                  nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg)
 
 from ai import AI, msg_ai_tg, image_ai_tg
 
 from modern_gdz import ModernGDZ
 import db
-from config import token, sql
+from config import token, sql, wolfram_api
 from states import *
 
 dp = Dispatcher(storage=MemoryStorage())
@@ -115,6 +117,19 @@ async def start_message(message: Message, state: FSMContext):
     await sql.add_wordcloud_user(user_id=message.from_user.id)
     await main_message(message)
     await message.delete()
+
+
+@dp.message(IsAdmin(), Command('gs', 'ds'))
+async def OptionState(message: Message, state: FSMContext):
+    state_ = await state.get_state()
+    if state_ is not None:
+        if message.text.lower() == '/gs':
+            await message.answer(hcode(state_), parse_mode=ParseMode.HTML)
+        elif message.text.lower() == '/ds':
+            await state.clear()
+            await message.answer(f'{hcode(state_)} удален', parse_mode=ParseMode.HTML)
+    else:
+        await message.answer('no state')
 
 
 @dp.message(Bind.picked_alias)
@@ -398,6 +413,35 @@ async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
         ai = AI(session)
         await image_ai_tg(message, state, bot, ai.dalle3, 'Dall-E 3')
 
+
+@dp.message(Command('wolfram'))
+async def wolfram_command(message: Message, state: FSMContext):
+    await cancel_state(state)
+    msg = await message.answer('Введите ваш запрос:', reply_markup=await reply_cancel_markup())
+    await state.set_state(WolframState.main)
+    await state.update_data({'delete_this_msgs': [msg]})
+
+
+@dp.message(WolframState.main)
+async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
+    if 'закончить' in message.text.lower():
+        await cancel_state(state)
+        await message.delete()
+        await message.answer('Возврат в меню.', reply_markup=await menu_markup(message.from_user.id))
+        return
+
+    text = message.text
+    translator = Translator()
+    source_lang = translator.detect(text).lang
+    if source_lang != 'en':
+        text = translator.translate(text, 'en', source_lang).text
+
+    await bot.send_chat_action(message.chat.id, 'upload_photo')
+    image = (await wolfram_getimg(wolfram_api, text, 'image'))[1]
+    await message.answer_photo(BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"), caption=text)
+    return
+
+
 @dp.message(Command('base_converter'))
 async def base_converter(message: Message, state: FSMContext):
     await cancel_state(state)
@@ -541,19 +585,6 @@ async def state_Marks_continue_(call: CallbackQuery, state: FSMContext):
         await cancel_state(state)
         await callback(call, state)
     await call.answer()
-
-
-@dp.message(IsAdmin(), Command('gs', 'ds'))
-async def OptionState(message: Message, state: FSMContext):
-    state_ = await state.get_state()
-    if state_ is not None:
-        if message.text.lower() == '/gs':
-            await message.answer(hcode(state_), parse_mode=ParseMode.HTML)
-        elif message.text.lower() == '/ds':
-            await state.clear()
-            await message.answer(f'{hcode(state_)} удален', parse_mode=ParseMode.HTML)
-    else:
-        await message.answer('no state')
 
 
 @dp.message(Command('bind'))
@@ -987,6 +1018,10 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                 await cancel_state(state)
                 await ai_command(message=message, state=state,
                                  command=CommandObject(prefix='/', command='ai', mention=None))
+                await message.delete()
+            elif 'wolfram' in low:
+                await cancel_state(state)
+                await wolfram_command(message=message, state=state)
                 await message.delete()
             elif 'закончить' in low or 'отмена' in low:
                 await message.delete()

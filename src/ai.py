@@ -46,6 +46,7 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
     try:
         if 'chatCode' not in data:
             resp, new_chatcode = await ai_method(text + f' {file_direct_link}')
+            logging.info(resp)
             await state.update_data({'chatCode': new_chatcode})
         else:
             resp = (await ai_method(text + f' {file_direct_link}', data['chatCode']))[0]
@@ -61,7 +62,7 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))
     except Exception as e:
-        await message.answer(html.quote(e))
+        await message.answer(f'{e} error')
 
 
 async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str):
@@ -80,7 +81,7 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         await message.answer_photo(file, caption=caption)
         # await message.answer_document(file, caption=caption, disable_notification=True)
     except Exception as e:
-        await message.answer(html.quote(e))
+        await message.answer(f'{e} error')
 
 
 async def cancel(message: Message, state: FSMContext):
@@ -92,16 +93,16 @@ async def cancel(message: Message, state: FSMContext):
 class AI:
     def __init__(self, session: aiohttp.client.ClientSession):
         self.session = session
-        self.headers = {'apikey': futureforge_api, 'Content-Type': 'application/json', 'Accept': 'application/json'}
+        self.headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 
     async def chatgpt_turbo(self, message: str, chatcode: str = None) -> tuple[str, str]:
         if chatcode is None:
             async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/create',
-                                         json={'message': message}, headers=self.headers) as r:
+                                         json={'message': message}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
         else:
             async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/chat',
-                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers) as r:
+                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
 
         return out['message'], out['chatCode']
@@ -109,17 +110,17 @@ class AI:
     async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
         if chatcode is None:
             async with self.session.post('https://api.futureforge.dev/gemini_pro/create',
-                                         json={'message': message}, headers=self.headers) as r:
+                                         json={'message': message}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
         else:
             async with self.session.post('https://api.futureforge.dev/gemini_pro/chat',
-                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers) as r:
+                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
 
         return out['message'], out['chatCode']
 
     async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
-        async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', params={'text': prompt},
+        async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', params={'text': prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
             img = (await r.json())['image_base64']
             if convert_to_bytes:
@@ -129,7 +130,7 @@ class AI:
     async def playgroundv2(self, prompt: str, negative_prompt: str = ' ',
                            convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/playgroundv2',
-                                     params={'prompt': prompt, 'negative_prompt': negative_prompt},
+                                     params={'prompt': prompt, 'negative_prompt': negative_prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
             img = (await r.json())['image_base64']
             if convert_to_bytes:
@@ -138,7 +139,7 @@ class AI:
 
     async def stable_diffusion_xl_turbo(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/sdxl-turbo',
-                                     params={'text': prompt},
+                                     params={'text': prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
             img = (await r.json())['image_base64']
             if convert_to_bytes:
@@ -148,11 +149,11 @@ class AI:
     async def claude(self, message: str, chatcode: str = None) -> tuple[str, str]:
         if chatcode is None:
             async with self.session.post('https://api.futureforge.dev/claude-instant/create',
-                                         json={'message': message}, headers=self.headers) as r:
+                                         json={'message': message}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
         else:
             async with self.session.post('https://api.futureforge.dev/claude-instant/chat',
-                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers) as r:
+                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
 
         return out['message'], out['chatCode']
@@ -160,11 +161,11 @@ class AI:
     async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
         if chatcode is None:
             async with self.session.post('https://api.futureforge.dev/mistral_medium/create',
-                                         json={'message': message}, headers=self.headers) as r:
+                                         json={'message': message}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
         else:
             async with self.session.post('https://api.futureforge.dev/mistral_medium/chat',
-                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers) as r:
+                                         json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
 
         return out['message'], out['chatCode']
@@ -172,7 +173,7 @@ class AI:
     async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/dalle3',
                                      json={'prompt': prompt},
-                                     headers=self.headers) as r:
+                                     headers=self.headers, params={'apikey': futureforge_api}) as r:
             # print(await r.text())
             img = (await r.json())['image_base64']
             if convert_to_bytes:

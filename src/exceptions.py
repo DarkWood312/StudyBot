@@ -4,3 +4,7 @@ class NumDontExistError(Exception):
 
 class BaseDontExistError(Exception):
     pass
+
+
+class WolframNotSuccess(Exception):
+    pass

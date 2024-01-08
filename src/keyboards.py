@@ -11,7 +11,9 @@ async def menu_markup(user_id):
     markup = ReplyKeyboardBuilder()
     compress_button = KeyboardButton(text=emojize(f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
     ai_button = KeyboardButton(text='AI🧠🔟')
+    wolfram_button = KeyboardButton(text='WolframAlpha📙')
     markup.row(compress_button)
+    markup.row(wolfram_button)
     if await sql.get_data(user_id, 'ai_access'):
         markup.row(ai_button)
     return markup.as_markup(resize_keyboard=True)

@@ -5,6 +5,7 @@ import sys
 import typing
 
 import aiohttp
+from PIL import Image
 from aiogram import html
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
@@ -19,7 +20,7 @@ from wordcloud import WordCloud
 
 import db
 from config import sql, proxy
-from exceptions import NumDontExistError, BaseDontExistError
+from exceptions import NumDontExistError, BaseDontExistError, WolframNotSuccess
 from keyboards import menu_markup
 
 
@@ -139,15 +140,57 @@ async def get_file_direct_link(file: typing.BinaryIO, session: aiohttp.client.Cl
     base_url = 'https://catbox.moe/user/api.php'
     fileb = file.read()
     file_size = sys.getsizeof(file.read())
-    if expires_in or ((file_size / 1024**2) > 200):
+    if expires_in or ((file_size / 1024 ** 2) > 200):
         base_url = 'https://litterbox.catbox.moe/resources/internals/api.php'
         form_data.add_field('time', expires_in)
     form_data.add_field('fileToUpload', fileb, filename=filename if filename else file.name)
-    async with session.post(base_url, data=form_data, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.771 YaBrowser/23.11.2.771 Yowser/2.5 Safari/537.36'}) as r:
+    async with session.post(base_url, data=form_data, headers={
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.771 YaBrowser/23.11.2.771 Yowser/2.5 Safari/537.36'}) as r:
         # if not r.status == 200:
         #     await get_file_direct_link(file, session, filename, expires_in='72h')
         # else:
         return await r.text()
+
+
+async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'bytes', 'image'] = 'url', **params) -> \
+tuple[dict, bytes | None]:
+    """
+    :param api: wolfram_api
+    :param query: request query
+    :param return_: url | bytes | image
+    :param params: more parameters if needed
+    :return: (dict of images, Image | None)
+    """
+    images = {}
+    params.update({'appid': api, 'input': query, 'format': 'image', 'output': 'json'})
+    async with aiohttp.ClientSession() as session:
+        async with session.get('http://api.wolframalpha.com/v2/query', params=params) as r:
+            if r.status != 200:
+                raise WolframNotSuccess(await r.text())
+            rjs = await r.json()
+        for i in rjs['queryresult']['pods']:
+            for s in i['subpods']:
+                img_src = s['img']['src']
+                if return_ == 'bytes' or return_ == 'image':
+                    async with session.get(img_src) as r:
+                        images[await r.read()] = s['img']['alt']
+                else:
+                    images[img_src] = s['img']['alt']
+
+    iobuf = None
+    if return_ == 'image':
+        imgs = [Image.open(io.BytesIO(i)) for i in images]
+        overall_size = list(zip(*[i.size for i in imgs]))
+        ready_img = Image.new('RGB', tuple([max(overall_size[0]), sum(overall_size[1])]), color='white')
+        h = 0
+        for i in imgs:
+            ready_img.paste(i, (0, h))
+            h += i.height
+
+        iobuf = io.BytesIO()
+        ready_img.save(iobuf, 'png')
+
+    return images, iobuf.getvalue()
 
 
 class IndigoMath:

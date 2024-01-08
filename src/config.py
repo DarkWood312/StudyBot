@@ -1,14 +1,17 @@
+import os
+
 from psycopg2 import OperationalError
 from sqdb import Sqdb
 from dotenv import load_dotenv
-from os import environ
 
 load_dotenv()
-token = environ['API_TOKEN']
-proxy = environ['PROXY']
-futureforge_api = environ['FUTUREFORGE_API']
+token = os.getenv('API_TOKEN')
+proxy = os.getenv('PROXY')
+futureforge_api = os.getenv('FUTUREFORGE_API')
+wolfram_api = os.getenv('WOLFRAM_API')
+
 try:
-    sql = Sqdb(environ['SQL_HOST'], environ['SQL_PASSWORD'], environ['SQL_PORT'], environ['SQL_DATABASE'], environ['SQL_USER'])
+    sql = Sqdb(os.getenv('SQL_HOST'), os.getenv('SQL_PASSWORD'), os.getenv('SQL_PORT'), os.getenv('SQL_DATABASE'), os.getenv('SQL_USER'))
 except OperationalError:
     sql = None
     print('COULD NOT CONNECT TO DATABASE!\n' * 5)

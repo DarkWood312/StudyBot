@@ -60,3 +60,7 @@ class AiState(StatesGroup):
     claude = State()
     mistral_medium = State()
     dalle3 = State()
+
+
+class WolframState(StatesGroup):
+    main = State()
