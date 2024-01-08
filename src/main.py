@@ -416,6 +416,7 @@ async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(Command('wolfram'))
 async def wolfram_command(message: Message, state: FSMContext):
+    await message.delete()
     await cancel_state(state)
     msg = await message.answer('Введите ваш запрос:', reply_markup=await reply_cancel_markup())
     await state.set_state(WolframState.main)
@@ -1022,7 +1023,6 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
             elif 'wolfram' in low:
                 await cancel_state(state)
                 await wolfram_command(message=message, state=state)
-                await message.delete()
             elif 'закончить' in low or 'отмена' in low:
                 await message.delete()
                 await cancel_state(state)
