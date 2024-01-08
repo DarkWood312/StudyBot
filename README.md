@@ -8,6 +8,7 @@ SQL_DATABASE=
 SQL_PASSWORD=
 PROXY=
 FUTUREFORGE_API=
+WOLFRAM_API=
 ```
 
 ### Database (_PostgreSQL_)
