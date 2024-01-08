@@ -439,7 +439,7 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
 
     await bot.send_chat_action(message.chat.id, 'upload_photo')
     image = (await wolfram_getimg(wolfram_api, text, 'image'))[1]
-    await message.answer_photo(BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"), caption=text)
+    await message.answer_photo(BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"), caption=f'<b>Wolram</b>📙: {text}')
     return
 
 
