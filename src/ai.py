@@ -1,7 +1,5 @@
 import base64
-import builtins
 import logging
-from io import BytesIO
 
 import aiohttp
 from aiogram import Bot, html
@@ -10,9 +8,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 from googletrans import Translator
 
-from config import futureforge_api, token
+from config import futureforge_api
 from defs import cancel_state, get_file_direct_link
 from keyboards import menu_markup
+from exceptions import *
 
 
 async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: str = 'typing'):
@@ -46,7 +45,6 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
     try:
         if 'chatCode' not in data:
             resp, new_chatcode = await ai_method(text + f' {file_direct_link}')
-            logging.info(resp)
             await state.update_data({'chatCode': new_chatcode})
         else:
             resp = (await ai_method(text + f' {file_direct_link}', data['chatCode']))[0]
@@ -59,10 +57,12 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
                 await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
             except Exception:
                 await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
+    except AIException.TooManyRequests as e:
+        await message.answer(e.message)
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))
-    except Exception as e:
-        await message.answer(f'{e} error')
+    # except Exception as e:
+    #     await message.answer(f'{e} error')
 
 
 async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str):
@@ -80,6 +80,8 @@ async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, 
         caption = f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}'
         await message.answer_photo(file, caption=caption)
         # await message.answer_document(file, caption=caption, disable_notification=True)
+    except AIException.TooManyRequests as e:
+        await message.answer(e.message)
     except Exception as e:
         await message.answer(f'{e} error')
 
@@ -105,6 +107,8 @@ class AI:
                                          json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
 
+        if r.status == 429:
+            raise AIException.TooManyRequests()
         return out['message'], out['chatCode']
 
     async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
@@ -116,12 +120,15 @@ class AI:
             async with self.session.post('https://api.futureforge.dev/gemini_pro/chat',
                                          json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
-
+        if r.status == 429:
+            raise AIException.TooManyRequests()
         return out['message'], out['chatCode']
 
     async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', params={'text': prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
             img = (await r.json())['image_base64']
             if convert_to_bytes:
                 img = base64.b64decode(img)
@@ -132,6 +139,8 @@ class AI:
         async with self.session.post('https://api.futureforge.dev/image/playgroundv2',
                                      params={'prompt': prompt, 'negative_prompt': negative_prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
             img = (await r.json())['image_base64']
             if convert_to_bytes:
                 img = base64.b64decode(img)
@@ -141,6 +150,8 @@ class AI:
         async with self.session.post('https://api.futureforge.dev/image/sdxl-turbo',
                                      params={'text': prompt, 'apikey': futureforge_api},
                                      headers=self.headers) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
             img = (await r.json())['image_base64']
             if convert_to_bytes:
                 img = base64.b64decode(img)
@@ -155,7 +166,8 @@ class AI:
             async with self.session.post('https://api.futureforge.dev/claude-instant/chat',
                                          json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
-
+        if r.status == 429:
+            raise AIException.TooManyRequests()
         return out['message'], out['chatCode']
 
     async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
@@ -167,14 +179,16 @@ class AI:
             async with self.session.post('https://api.futureforge.dev/mistral_medium/chat',
                                          json={'message': message, 'chatCode': chatcode}, headers=self.headers, params={'apikey': futureforge_api}) as r:
                 out = await r.json()
-
+        if r.status == 429:
+            raise AIException.TooManyRequests()
         return out['message'], out['chatCode']
 
     async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/dalle3',
                                      json={'prompt': prompt},
                                      headers=self.headers, params={'apikey': futureforge_api}) as r:
-            # print(await r.text())
+            if r.status == 429:
+                raise AIException.TooManyRequests()
             img = (await r.json())['image_base64']
             if convert_to_bytes:
                 img = base64.b64decode(img)

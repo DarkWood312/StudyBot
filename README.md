@@ -1,3 +1,4 @@
+### AI на основе бесплатного [FutureForge API](https://api.futureforge.dev/docs#/). Выражаю отдельную благодарность автору за такой проект
 ### Environmental Variables
 ```
 API_TOKEN=

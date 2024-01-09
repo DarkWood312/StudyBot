@@ -19,7 +19,7 @@ from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
 
-from exceptions import NumDontExistError, BaseDontExistError
+from exceptions import *
 from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
 # from netschool import NetSchool
 
@@ -438,8 +438,14 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
         text = translator.translate(text, 'en', source_lang).text
 
     await bot.send_chat_action(message.chat.id, 'upload_photo')
-    image = (await wolfram_getimg(wolfram_api, text, 'image'))[1]
-    await message.answer_photo(BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"), caption=f'<b>Wolram</b>📙: {text}')
+    try:
+        image = (await wolfram_getimg(wolfram_api, text, 'image'))[1]
+        await message.answer_photo(
+            BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"),
+            caption=f'<b>Wolfram</b>📙: {text}')
+
+    except WolframException.NotSuccess:
+        await message.answer('Ошибка. Попробуйте уточнить запрос.')
     return
 
 

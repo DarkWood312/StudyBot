@@ -1,5 +1,6 @@
 import io
 import itertools
+import logging
 import string
 import sys
 import typing
@@ -20,7 +21,7 @@ from wordcloud import WordCloud
 
 import db
 from config import sql, proxy
-from exceptions import NumDontExistError, BaseDontExistError, WolframNotSuccess
+from exceptions import NumDontExistError, BaseDontExistError, WolframException
 from keyboards import menu_markup
 
 
@@ -153,7 +154,7 @@ async def get_file_direct_link(file: typing.BinaryIO, session: aiohttp.client.Cl
 
 
 async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'bytes', 'image'] = 'url', **params) -> \
-tuple[dict, bytes | None]:
+        tuple[dict, bytes | None]:
     """
     :param api: wolfram_api
     :param query: request query
@@ -166,8 +167,11 @@ tuple[dict, bytes | None]:
     async with aiohttp.ClientSession() as session:
         async with session.get('http://api.wolframalpha.com/v2/query', params=params) as r:
             if r.status != 200:
-                raise WolframNotSuccess(await r.text())
+                raise WolframException.StatusNot200(await r.text())
             rjs = await r.json()
+            if not (rjs['queryresult']['success']):
+                raise WolframException.NotSuccess
+            logging.debug(rjs)
         for i in rjs['queryresult']['pods']:
             for s in i['subpods']:
                 img_src = s['img']['src']
