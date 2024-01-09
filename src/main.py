@@ -195,40 +195,40 @@ async def state_Orthoepy_main(message: Message, state: FSMContext, bot: Bot, cal
             for incorrect_word in incorrect:
                 await sql.add_orthoepy(incorrect_word[0], 1)
 
-        # * Randoms
-        rand = random.randint(1, 100)
-        total_floor = 10
-        if rand <= 1.25 and total > 0:
-            await message.answer_video_note(db.video_note_answers['nikita_lucky-1'])
-        elif 1.25 < rand <= 2.5 and total > 0:
-            await message.answer_video_note(db.video_note_answers['nikita_lucky-2'])
-        elif 2.5 < rand <= 3.75 and total > 0:
-            await message.answer_video_note(db.video_note_answers['nikita_lucky-3'])
-        elif 3.75 < rand <= 5 and total > 0:
-            await message.answer_video_note(db.video_note_answers['nikita_lucky-4'])
-        elif percentage == 100 and total == 1:
-            await message.answer_video_note(db.video_note_answers['nikita_fake_100-1'])
-        elif percentage == 0 and total == 1:
-            await message.answer_video_note(db.video_note_answers['nikita_fake_100-2'])
-        elif percentage == 0 and total >= total_floor:
-            if rand <= 25:
-                await message.answer_video_note(db.video_note_answers['nikita_fu-2'])
-                await message.answer_video_note(db.video_note_answers['nikita_fu-3'])
-            else:
-                await message.answer_video_note(db.video_note_answers['nikita_fu-1'])
-        elif percentage <= 10 and total >= total_floor:
-            if rand <= 10:
-                await message.answer_video_note(db.video_note_answers['nikita_less10-2'])
-            else:
-                await message.answer_video_note(db.video_note_answers['nikita_less10-1'])
-        elif 80 > percentage >= 50 and total >= total_floor:
-            await message.answer_video_note(db.video_note_answers['nikita_mid-1'])
-        elif 90 > percentage >= 80 and total >= total_floor:
-            await message.answer_video_note(db.video_note_answers['nikita_high-1'])
-        elif 100 > percentage >= 90 and total >= total_floor:
-            await message.answer_video_note(db.video_note_answers['nikita_high-2'])
-        elif percentage == 100 and total >= len(words):
-            await message.answer_video_note(db.video_note_answers['holid_100-1'])
+        # # * Randoms
+        # rand = random.randint(1, 100)
+        # total_floor = 10
+        # if rand <= 1.25 and total > 0:
+        #     await message.answer_video_note(db.video_note_answers['nikita_lucky-1'])
+        # elif 1.25 < rand <= 2.5 and total > 0:
+        #     await message.answer_video_note(db.video_note_answers['nikita_lucky-2'])
+        # elif 2.5 < rand <= 3.75 and total > 0:
+        #     await message.answer_video_note(db.video_note_answers['nikita_lucky-3'])
+        # elif 3.75 < rand <= 5 and total > 0:
+        #     await message.answer_video_note(db.video_note_answers['nikita_lucky-4'])
+        # elif percentage == 100 and total == 1:
+        #     await message.answer_video_note(db.video_note_answers['nikita_fake_100-1'])
+        # elif percentage == 0 and total == 1:
+        #     await message.answer_video_note(db.video_note_answers['nikita_fake_100-2'])
+        # elif percentage == 0 and total >= total_floor:
+        #     if rand <= 25:
+        #         await message.answer_video_note(db.video_note_answers['nikita_fu-2'])
+        #         await message.answer_video_note(db.video_note_answers['nikita_fu-3'])
+        #     else:
+        #         await message.answer_video_note(db.video_note_answers['nikita_fu-1'])
+        # elif percentage <= 10 and total >= total_floor:
+        #     if rand <= 10:
+        #         await message.answer_video_note(db.video_note_answers['nikita_less10-2'])
+        #     else:
+        #         await message.answer_video_note(db.video_note_answers['nikita_less10-1'])
+        # elif 80 > percentage >= 50 and total >= total_floor:
+        #     await message.answer_video_note(db.video_note_answers['nikita_mid-1'])
+        # elif 90 > percentage >= 80 and total >= total_floor:
+        #     await message.answer_video_note(db.video_note_answers['nikita_high-1'])
+        # elif 100 > percentage >= 90 and total >= total_floor:
+        #     await message.answer_video_note(db.video_note_answers['nikita_high-2'])
+        # elif percentage == 100 and total >= len(words):
+        #     await message.answer_video_note(db.video_note_answers['holid_100-1'])
 
 
 @dp.callback_query(Orthoepy.main)
@@ -941,6 +941,17 @@ async def documents(message: Message):
     inline_kb.adjust(1)
     await message.answer('<b>Документы: </b>', reply_markup=inline_kb.as_markup())
     await message.delete()
+
+
+@dp.message(IsAdmin(), Command('del_msg'))
+async def del_msg_command(message: Message, bot: Bot, cmd: CommandObject):
+    args = cmd.args
+    users = await sql.get_users()
+    for user in users:
+        try:
+            await bot.delete_message(user[0], int(args[0]))
+        except Exception as e:
+            await message.answer(str(e))
 
 
 @dp.message(F.text)

@@ -193,3 +193,9 @@ class AI:
             if convert_to_bytes:
                 img = base64.b64decode(img)
             return img
+
+    async def stable_diffusion_video(self, image_url: str, num_videos: int = 1):
+        async with self.session.post('https://api.futureforge.dev/svd', params={k: v for k, v in locals().items() if k != 'self'}) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
+            vid = (await r.json())['']
