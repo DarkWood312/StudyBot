@@ -171,7 +171,7 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
             rjs = await r.json()
             if not (rjs['queryresult']['success']):
                 raise WolframException.NotSuccess
-            logging.debug(rjs)
+            logging.debug(f'WOLFRAMALPHA: {rjs}')
         for i in rjs['queryresult']['pods']:
             for s in i['subpods']:
                 img_src = s['img']['src']

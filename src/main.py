@@ -442,7 +442,7 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
         image = (await wolfram_getimg(wolfram_api, text, 'image'))[1]
         await message.answer_photo(
             BufferedInputFile(image, filename=f"wolfram_{datetime.now().strftime('%d-%m--%H-%M-%S')}.png"),
-            caption=f'<b>Wolfram</b>📙: {text}')
+            caption=f'<b>Wolfram</b>📙: <code>{text}</code>')
 
     except WolframException.NotSuccess:
         await message.answer('Ошибка. Попробуйте уточнить запрос.')
