@@ -185,10 +185,10 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
     if return_ == 'image':
         imgs = [Image.open(io.BytesIO(i)) for i in images]
         overall_size = list(zip(*[i.size for i in imgs]))
-        ready_img = Image.new('RGB', tuple([max(overall_size[0]), sum(overall_size[1])]), color='white')
-        h = 0
+        ready_img = Image.new('RGB', tuple([max(overall_size[0])+10, sum(overall_size[1])+10]), color='white')
+        h = 5
         for i in imgs:
-            ready_img.paste(i, (0, h))
+            ready_img.paste(i, (5, h))
             h += i.height
 
         iobuf = io.BytesIO()
