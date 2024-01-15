@@ -1,6 +1,6 @@
 from typing import List
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from emoji import emojize
 
@@ -12,8 +12,10 @@ async def menu_markup(user_id):
     compress_button = KeyboardButton(text=emojize(f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
     ai_button = KeyboardButton(text='AI🧠🔟')
     wolfram_button = KeyboardButton(text='WolframAlpha📙')
+    desmos_button = KeyboardButton(text='Графический калькулятор📊', web_app=WebAppInfo(url='https://tgbot.dwip.fun/'))
     markup.row(compress_button)
     markup.row(wolfram_button)
+    markup.row(desmos_button)
     if await sql.get_data(user_id, 'ai_access'):
         markup.row(ai_button)
     return markup.as_markup(resize_keyboard=True)
