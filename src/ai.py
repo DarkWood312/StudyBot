@@ -123,7 +123,6 @@ class AI:
                 out = await r.json()
         if r.status == 429:
             raise AIException.TooManyRequests()
-        print(out)
         return out['message'], out['chatCode']
 
     async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
