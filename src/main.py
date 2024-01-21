@@ -903,6 +903,7 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
 
 @dp.message(Command('ai'))
 async def ai_command(message: Message, state: FSMContext, command: CommandObject):
+    await message.delete()
     if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
         if command.args.startswith('-'):
             await sql.change_data_type(command.args[1:], 'ai_access', False)
