@@ -361,15 +361,13 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
 @dp.message(AiState.chatgpt_turbo)
 async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await msg_ai_tg(message, state, bot, ai.chatgpt_turbo, 'ChatGPT-Turbo', session)
+        await msg_ai_tg(message, state, bot, 'gpt-3-5-turbo', 'ChatGPT-Turbo', session)
 
 
 @dp.message(AiState.gemini_pro)
 async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await msg_ai_tg(message, state, bot, ai.gemini_pro, 'Gemini-Pro', session)
+        await msg_ai_tg(message, state, bot, 'gemini-pro', 'Gemini-Pro', session)
 
 
 @dp.message(AiState.midjourney_v4)
@@ -396,15 +394,14 @@ async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot:
 @dp.message(AiState.claude)
 async def claude_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await msg_ai_tg(message, state, bot, ai.claude, 'Claude', session)
+        await msg_ai_tg(message, state, bot, 'claude-instant', 'Claude', session)
 
 
 @dp.message(AiState.mistral_medium)
 async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        await msg_ai_tg(message, state, bot, ai.mistral_medium, 'Mistral Medium', session)
+        await msg_ai_tg(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
 
 
 @dp.message(AiState.dalle3)
@@ -1163,7 +1160,10 @@ async def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    logging.basicConfig(level=logging.DEBUG, encoding='utf-8',
+                        handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
+                        format='%(asctime)s %(name)s:%(levelname)s %(message)s', datefmt='%m-%d-%Y %H:%M:%S')
+    logging.getLogger('hpack').setLevel(logging.WARNING)
     nltk.download('punkt')
     nltk.download('stopwords')
     asyncio.run(main())

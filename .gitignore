@@ -5,3 +5,4 @@ desktop.ini
 Dockerfile
 venv
 src/test_settings.txt
+/src/debug.log

@@ -1,5 +1,6 @@
 import base64
 import logging
+import typing
 
 import aiohttp
 from aiogram import Bot, html
@@ -13,6 +14,23 @@ from defs import cancel_state, get_file_direct_link
 from keyboards import menu_markup
 from exceptions import *
 
+models = typing.Literal[
+    "gpt-3-5",
+    "gpt-3-5-turbo",
+    "gpt-3-5-turbo-instruct",
+    "claude-instant",
+    "google-palm",
+    "llama-2-7b",
+    "llama-2-13b",
+    "llama-2-70b",
+    "code-llama-7b",
+    "code-llama-13b",
+    "code-llama-34b",
+    "solar-0-70b",
+    "gemini-pro",
+    "mistral-medium"
+]
+
 
 async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: str = 'typing'):
     if message.text is not None and 'Закончить разговор❌' in message.text:
@@ -21,7 +39,7 @@ async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: s
     return True
 
 
-async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str,
+async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, model: models, ai_name: str,
                     session: aiohttp.client.ClientSession):
     text = message.text or message.caption or ''
 
@@ -40,14 +58,14 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
         file = await bot.download(file_tid)
         file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
         file_direct_link = await get_file_direct_link(file=file, session=session, filename=file_name, expires_in='1h')
-        logging.info(f'created image with link --> {file_direct_link}')
+        logging.debug(f'created image with link --> {file_direct_link}')
 
     try:
         if 'chatCode' not in data:
-            resp, new_chatcode = await ai_method(text + f' {file_direct_link}')
+            resp, new_chatcode = await AI(session=session).chat(model, text + f' {file_direct_link}')
             await state.update_data({'chatCode': new_chatcode})
         else:
-            resp = (await ai_method(text + f' {file_direct_link}', data['chatCode']))[0]
+            resp = (await AI(session=session).chat(model, text + f' {file_direct_link}', data['chatCode']))[0]
         try:
             mresp = resp
             await message.answer(f'*{ai_name}💬:* {mresp}', parse_mode=ParseMode.MARKDOWN)
@@ -58,6 +76,8 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai
             except Exception:
                 await message.answer(f'<b>{ai_name}💬:</b> {html.quote(resp)}', parse_mode=ParseMode.HTML)
     except AIException.TooManyRequests as e:
+        await message.answer(e.message)
+    except AIException.ApiIsBroken as e:
         await message.answer(e.message)
     except aiohttp.ContentTypeError as e:
         await message.answer(html.quote(e.message))
@@ -96,34 +116,55 @@ class AI:
     def __init__(self, session: aiohttp.client.ClientSession):
         self.session = session
         self.headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        self.request_params = {'headers': self.headers, 'params': {'apikey': futureforge_api}, 'json': {'model': 'string'}}
+        self.request_params = {'headers': self.headers, 'params': {'apikey': futureforge_api},
+                               'json': {}}
 
-    async def chatgpt_turbo(self, message: str, chatcode: str = None) -> tuple[str, str]:
+    async def chat(self, model: models, message: str, chatcode: str = None):
         self.request_params['json']['message'] = message
+        self.request_params['json']['model'] = model
         if chatcode is None:
-            async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/create', **self.request_params) as r:
+            async with self.session.post('https://api.futureforge.dev/chat/create',
+                                         **self.request_params) as r:
                 out = await r.json()
         else:
             self.request_params['json']['chatCode'] = chatcode
-            async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/chat', **self.request_params) as r:
+            async with self.session.post('https://api.futureforge.dev/chat/chat', **self.request_params) as r:
                 out = await r.json()
-
+        logging.debug(out)
         if r.status == 429:
             raise AIException.TooManyRequests()
+        if not ('message' in out):
+            raise AIException.ApiIsBroken()
         return out['message'], out['chatCode']
 
-    async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
-        self.request_params['json']['message'] = message
-        if chatcode is None:
-            async with self.session.post('https://api.futureforge.dev/gemini_pro/create', **self.request_params) as r:
-                out = await r.json()
-        else:
-            self.request_params['json']['chatCode'] = chatcode
-            async with self.session.post('https://api.futureforge.dev/gemini_pro/chat', **self.request_params) as r:
-                out = await r.json()
-        if r.status == 429:
-            raise AIException.TooManyRequests()
-        return out['message'], out['chatCode']
+    # async def chatgpt_turbo(self, message: str, chatcode: str = None) -> tuple[str, str]:
+    #     self.request_params['json']['message'] = message
+    #     if chatcode is None:
+    #         async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/create',
+    #                                      **self.request_params) as r:
+    #             out = await r.json()
+    #     else:
+    #         self.request_params['json']['chatCode'] = chatcode
+    #         async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/chat', **self.request_params) as r:
+    #             out = await r.json()
+    #
+    #     if r.status == 429:
+    #         raise AIException.TooManyRequests()
+    #     return out['message'], out['chatCode']
+    #
+    # async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
+    #     self.request_params['json']['message'] = message
+    #     if chatcode is None:
+    #         async with self.session.post('https://api.futureforge.dev/gemini_pro/create', **self.request_params) as r:
+    #             out = await r.json()
+    #     else:
+    #         self.request_params['json']['chatCode'] = chatcode
+    #         async with self.session.post('https://api.futureforge.dev/gemini_pro/chat', **self.request_params) as r:
+    #             out = await r.json()
+    #     if r.status == 429:
+    #         raise AIException.TooManyRequests()
+    #     logging.debug(out)
+    #     return out['message'], out['chatCode']
 
     async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         self.request_params['params']['text'] = prompt
@@ -157,31 +198,33 @@ class AI:
                 img = base64.b64decode(img)
             return img
 
-    async def claude(self, message: str, chatcode: str = None) -> tuple[str, str]:
-        self.request_params['json']['message'] = message
-        if chatcode is None:
-            async with self.session.post('https://api.futureforge.dev/claude-instant/create', **self.request_params) as r:
-                out = await r.json()
-        else:
-            self.request_params['json']['chatCode'] = chatcode
-            async with self.session.post('https://api.futureforge.dev/claude-instant/chat', **self.request_params) as r:
-                out = await r.json()
-        if r.status == 429:
-            raise AIException.TooManyRequests()
-        return out['message'], out['chatCode']
+    # async def claude(self, message: str, chatcode: str = None) -> tuple[str, str]:
+    #     self.request_params['json']['message'] = message
+    #     if chatcode is None:
+    #         async with self.session.post('https://api.futureforge.dev/claude-instant/create',
+    #                                      **self.request_params) as r:
+    #             out = await r.json()
+    #     else:
+    #         self.request_params['json']['chatCode'] = chatcode
+    #         async with self.session.post('https://api.futureforge.dev/claude-instant/chat', **self.request_params) as r:
+    #             out = await r.json()
+    #     if r.status == 429:
+    #         raise AIException.TooManyRequests()
+    #     return out['message'], out['chatCode']
 
-    async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
-        self.request_params['json']['message'] = message
-        if chatcode is None:
-            async with self.session.post('https://api.futureforge.dev/mistral_medium/create', **self.request_params) as r:
-                out = await r.json()
-        else:
-            self.request_params['json']['chatCode'] = chatcode
-            async with self.session.post('https://api.futureforge.dev/mistral_medium/chat', **self.request_params) as r:
-                out = await r.json()
-        if r.status == 429:
-            raise AIException.TooManyRequests()
-        return out['message'], out['chatCode']
+    # async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
+    #     self.request_params['json']['message'] = message
+    #     if chatcode is None:
+    #         async with self.session.post('https://api.futureforge.dev/mistral_medium/create',
+    #                                      **self.request_params) as r:
+    #             out = await r.json()
+    #     else:
+    #         self.request_params['json']['chatCode'] = chatcode
+    #         async with self.session.post('https://api.futureforge.dev/mistral_medium/chat', **self.request_params) as r:
+    #             out = await r.json()
+    #     if r.status == 429:
+    #         raise AIException.TooManyRequests()
+    #     return out['message'], out['chatCode']
 
     async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
         async with self.session.post('https://api.futureforge.dev/image/dalle3',
@@ -195,7 +238,8 @@ class AI:
             return img
 
     async def stable_diffusion_video(self, image_url: str, num_videos: int = 1):
-        async with self.session.post('https://api.futureforge.dev/svd', params={k: v for k, v in locals().items() if k != 'self'}) as r:
+        async with self.session.post('https://api.futureforge.dev/svd',
+                                     params={k: v for k, v in locals().items() if k != 'self'}) as r:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             vid = (await r.json())['']

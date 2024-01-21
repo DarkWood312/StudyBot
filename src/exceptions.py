@@ -19,3 +19,8 @@ class AIException:
         def __init__(self, message='Слишком много запросов. Подождите 10 секунд'):
             self.message = message
             super().__init__(message)
+
+    class ApiIsBroken(Exception):
+        def __init__(self, message='Похоже что API сломан сейчас...'):
+            self.message = message
+            super().__init__(message)
