@@ -1,10 +1,12 @@
 import base64
 import logging
 import typing
+from datetime import datetime
 
 import aiohttp
 from aiogram import Bot, html
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 from googletrans import Translator
@@ -39,7 +41,7 @@ async def ai_func_start(message: Message, state: FSMContext, bot: Bot, action: s
     return True
 
 
-async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, model: models, ai_name: str,
+async def text2text(message: Message, state: FSMContext, bot: Bot, model: models, ai_name: str,
                     session: aiohttp.client.ClientSession):
     text = message.text or message.caption or ''
 
@@ -85,25 +87,58 @@ async def msg_ai_tg(message: Message, state: FSMContext, bot: Bot, model: models
     #     await message.answer(f'{e} error')
 
 
-async def image_ai_tg(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str):
+async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str, send_via_document: bool = False):
     if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
     try:
         text = message.text
+        if '--doc' in text:
+            send_via_document = True
+            text.replace('--doc', '')
         translator = Translator()
         source_lang = translator.detect(text).lang
         if source_lang != 'en':
             text = translator.translate(text, 'en', source_lang).text
-        img = await ai_method(text, convert_to_bytes=True)
-        file = BufferedInputFile(img, message.text)
+        img = await ai_method(text)
+        file = BufferedInputFile(img, filename=f"{datetime.now().strftime('%d-%m--%H-%M-%S')}.jpg")
         caption = f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}'
-        await message.answer_photo(file, caption=caption)
+        if send_via_document:
+            await message.answer_document(file, caption=caption)
+        else:
+            await message.answer_photo(file, caption=caption)
         # await message.answer_document(file, caption=caption, disable_notification=True)
     except AIException.TooManyRequests as e:
         await message.answer(e.message)
     except Exception as e:
         await message.answer(f'{e} error')
+
+
+async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str, send_via_document: bool = False):
+    if not await ai_func_start(message, state, bot, 'upload_photo'):
+        await cancel(message, state)
+        return
+    try:
+        text = message.caption
+        if '--doc' in text:
+            send_via_document = True
+            text.replace('--doc', '')
+        photo = message.photo[-1]
+        photob = await bot.download(photo.file_id)
+        photo_name = (await bot.get_file(photo.file_id)).file_path.split('/')[-1]
+        async with aiohttp.ClientSession() as session:
+            photourl = await get_file_direct_link(photob, session, photo_name)
+            img = await ai_method(photourl, text)
+        params = (BufferedInputFile(img, filename=f"{datetime.now().strftime('%d-%m--%H-%M-%S')}.{photourl.split('.')[-1]}"), f'<b>{ai_name}🦋:</b> <code>{html.quote(text)}</code>\n@{(await bot.get_me()).username}')
+        if send_via_document:
+            await message.answer_document(params[0], caption=params[1])
+        else:
+            try:
+                await message.answer_photo(params[0], caption=params[1])
+            except TelegramBadRequest:
+                await message.answer_document(params[0], caption=params[1])
+    except AIException.TooManyRequests as e:
+        await message.answer(e.message)
 
 
 async def cancel(message: Message, state: FSMContext):
@@ -129,113 +164,59 @@ class AI:
         else:
             self.request_params['json']['chatCode'] = chatcode
             async with self.session.post('https://api.futureforge.dev/chat/chat', **self.request_params) as r:
+                if r.status == 429:
+                    raise AIException.TooManyRequests()
                 out = await r.json()
         logging.debug(out)
-        if r.status == 429:
-            raise AIException.TooManyRequests()
+
         if not ('message' in out):
             raise AIException.ApiIsBroken()
         return out['message'], out['chatCode']
 
-    # async def chatgpt_turbo(self, message: str, chatcode: str = None) -> tuple[str, str]:
-    #     self.request_params['json']['message'] = message
-    #     if chatcode is None:
-    #         async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/create',
-    #                                      **self.request_params) as r:
-    #             out = await r.json()
-    #     else:
-    #         self.request_params['json']['chatCode'] = chatcode
-    #         async with self.session.post('https://api.futureforge.dev/chatgpt-turbo/chat', **self.request_params) as r:
-    #             out = await r.json()
-    #
-    #     if r.status == 429:
-    #         raise AIException.TooManyRequests()
-    #     return out['message'], out['chatCode']
-    #
-    # async def gemini_pro(self, message: str, chatcode: str = None) -> tuple[str, str]:
-    #     self.request_params['json']['message'] = message
-    #     if chatcode is None:
-    #         async with self.session.post('https://api.futureforge.dev/gemini_pro/create', **self.request_params) as r:
-    #             out = await r.json()
-    #     else:
-    #         self.request_params['json']['chatCode'] = chatcode
-    #         async with self.session.post('https://api.futureforge.dev/gemini_pro/chat', **self.request_params) as r:
-    #             out = await r.json()
-    #     if r.status == 429:
-    #         raise AIException.TooManyRequests()
-    #     logging.debug(out)
-    #     return out['message'], out['chatCode']
-
-    async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
+    async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> bytes:
         self.request_params['params']['text'] = prompt
         async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', **self.request_params) as r:
             if r.status == 429:
                 raise AIException.TooManyRequests()
-            img = (await r.json())['image_base64']
-            if convert_to_bytes:
-                img = base64.b64decode(img)
-            return img
+            out = await r.json()
+        logging.debug(out)
 
-    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ',
-                           convert_to_bytes: bool = False) -> str | bytes:
+        img = base64.b64decode(out['image_base64'])
+        return img
+
+    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ') -> bytes:
         self.request_params['params']['prompt'] = prompt
         self.request_params['params']['negative_prompt'] = negative_prompt
         async with self.session.post('https://api.futureforge.dev/image/playgroundv2', **self.request_params) as r:
             if r.status == 429:
                 raise AIException.TooManyRequests()
-            img = (await r.json())['image_base64']
-            if convert_to_bytes:
-                img = base64.b64decode(img)
-            return img
+            out = await r.json()
+        logging.debug(out)
 
-    async def stable_diffusion_xl_turbo(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
+        img = base64.b64decode(out['image_base64'])
+        return img
+
+    async def stable_diffusion_xl_turbo(self, prompt: str) -> bytes:
         self.request_params['params']['text'] = prompt
         async with self.session.post('https://api.futureforge.dev/image/sdxl-turbo', **self.request_params) as r:
             if r.status == 429:
                 raise AIException.TooManyRequests()
-            img = (await r.json())['image_base64']
-            if convert_to_bytes:
-                img = base64.b64decode(img)
-            return img
+            out = await r.json()
+        logging.debug(out)
 
-    # async def claude(self, message: str, chatcode: str = None) -> tuple[str, str]:
-    #     self.request_params['json']['message'] = message
-    #     if chatcode is None:
-    #         async with self.session.post('https://api.futureforge.dev/claude-instant/create',
-    #                                      **self.request_params) as r:
-    #             out = await r.json()
-    #     else:
-    #         self.request_params['json']['chatCode'] = chatcode
-    #         async with self.session.post('https://api.futureforge.dev/claude-instant/chat', **self.request_params) as r:
-    #             out = await r.json()
-    #     if r.status == 429:
-    #         raise AIException.TooManyRequests()
-    #     return out['message'], out['chatCode']
+        img = base64.b64decode(out['image_base64'])
+        return img
 
-    # async def mistral_medium(self, message: str, chatcode: str = None) -> tuple[str, str]:
-    #     self.request_params['json']['message'] = message
-    #     if chatcode is None:
-    #         async with self.session.post('https://api.futureforge.dev/mistral_medium/create',
-    #                                      **self.request_params) as r:
-    #             out = await r.json()
-    #     else:
-    #         self.request_params['json']['chatCode'] = chatcode
-    #         async with self.session.post('https://api.futureforge.dev/mistral_medium/chat', **self.request_params) as r:
-    #             out = await r.json()
-    #     if r.status == 429:
-    #         raise AIException.TooManyRequests()
-    #     return out['message'], out['chatCode']
-
-    async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
-        async with self.session.post('https://api.futureforge.dev/image/dalle3',
-                                     json={'prompt': prompt},
-                                     headers=self.headers, params={'apikey': futureforge_api}) as r:
-            if r.status == 429:
-                raise AIException.TooManyRequests()
-            img = (await r.json())['image_base64']
-            if convert_to_bytes:
-                img = base64.b64decode(img)
-            return img
+    # async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
+    #     async with self.session.post('https://api.futureforge.dev/image/dalle3',
+    #                                  json={'prompt': prompt},
+    #                                  headers=self.headers, params={'apikey': futureforge_api}) as r:
+    #         if r.status == 429:
+    #             raise AIException.TooManyRequests()
+    #         img = (await r.json())['image_base64']
+    #         if convert_to_bytes:
+    #             img = base64.b64decode(img)
+    #         return img
 
     async def stable_diffusion_video(self, image_url: str, num_videos: int = 1):
         async with self.session.post('https://api.futureforge.dev/svd',
@@ -243,3 +224,31 @@ class AI:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             vid = (await r.json())['']
+
+    async def hcrt(self, image_url: str, prompt: str) -> bytes:
+        self.request_params['params']['prompt'] = prompt
+        self.request_params['params']['image_url'] = image_url
+        async with self.session.post('https://api.futureforge.dev/image/hrct/', **self.request_params) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
+            out = await r.json()
+        logging.debug(out)
+
+        async with self.session.get(out['image_url']) as r:
+            img_bytes = await r.read()
+
+        return img_bytes
+
+    async def photomaker(self, image_url: str, prompt: str) -> bytes:
+        self.request_params['params']['prompt'] = prompt
+        self.request_params['params']['image_url'] = image_url
+        async with self.session.post('https://api.futureforge.dev/image/photomaker/', **self.request_params) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
+            out = await r.json()
+        logging.debug(out)
+
+        async with self.session.get(out['image_url']) as r:
+            img_bytes = await r.read()
+
+        return img_bytes

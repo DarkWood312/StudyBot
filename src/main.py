@@ -28,7 +28,7 @@ from defs import (cancel_state, main_message, orthoepy_word_formatting, command_
                   num_base_converter,
                   nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg)
 
-from ai import AI, msg_ai_tg, image_ai_tg
+from ai import AI, text2text, text2image, image2image
 
 from modern_gdz import ModernGDZ
 import db
@@ -322,7 +322,7 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
         await message.delete()
         if 'ChatGPT-Turbo' in message.text:
-            await message.answer('Чат создан. Напишите запрос',
+            await message.answer('Чат создан. Напишите запрос: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.chatgpt_turbo)
         elif 'Midjourney-V4' in message.text:
@@ -342,17 +342,25 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.stable_diffusion_xl_turbo)
         elif 'Claude' in message.text:
-            await message.answer('Чат создан. Напишите запрос',
+            await message.answer('Чат создан. Напишите запрос: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.claude)
         elif 'Mistral Medium' in message.text:
-            await message.answer('Чат создан. Напишите запрос',
+            await message.answer('Чат создан. Напишите запрос: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.mistral_medium)
         elif 'Dall-E 3' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.dalle3)
+        elif 'Photomaker' in message.text:
+            await message.answer('Отправьте 1 фото с подписью для генерации: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.photomaker)
+        elif 'High-Resolution' in message.text:
+            await message.answer('Отправьте 1 фото с подписью для генерации: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.hcrt)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -361,54 +369,74 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
 @dp.message(AiState.chatgpt_turbo)
 async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        await msg_ai_tg(message, state, bot, 'gpt-3-5-turbo', 'ChatGPT-Turbo', session)
+        await text2text(message, state, bot, 'gpt-3-5-turbo', 'ChatGPT-Turbo', session)
 
 
 @dp.message(AiState.gemini_pro)
 async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        await msg_ai_tg(message, state, bot, 'gemini-pro', 'Gemini-Pro', session)
+        await text2text(message, state, bot, 'gemini-pro', 'Gemini-Pro', session)
 
 
 @dp.message(AiState.midjourney_v4)
 async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        await image_ai_tg(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
+        await text2image(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
 
 
 @dp.message(AiState.playground_v2)
 async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        await image_ai_tg(message, state, bot, ai.playgroundv2, 'Playground-V2')
+        await text2image(message, state, bot, ai.playgroundv2, 'Playground-V2')
 
 
 @dp.message(AiState.stable_diffusion_xl_turbo)
 async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        await image_ai_tg(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
+        await text2image(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
 
 
 @dp.message(AiState.claude)
 async def claude_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        await msg_ai_tg(message, state, bot, 'claude-instant', 'Claude', session)
+        await text2text(message, state, bot, 'claude-instant', 'Claude', session)
 
 
 @dp.message(AiState.mistral_medium)
 async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await msg_ai_tg(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
+        # ai = AI(session)
+        await text2text(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
 
 
-@dp.message(AiState.dalle3)
-async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
+# @dp.message(AiState.dalle3)
+# async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await text2image(message, state, bot, ai.dalle3, 'Dall-E 3')
+
+
+@dp.message(AiState.photomaker)
+async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
+    if not (message.photo or message.caption):
+        await message.answer('Отправьте фотографию с подписью!')
+        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
-        await image_ai_tg(message, state, bot, ai.dalle3, 'Dall-E 3')
+        await image2image(message, state, bot, ai.photomaker, 'Photomaker')
+
+
+@dp.message(AiState.hcrt)
+async def hcrt_st(message: Message, state: FSMContext, bot: Bot):
+    if len(message.photo) == 0 or message.caption == '':
+        await message.answer('Отправьте фотографию с подписью!')
+        return
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        await image2image(message, state, bot, ai.hcrt, 'High-Resolution-Controlnet-Tile')
 
 
 @dp.message(Command('wolfram'))
@@ -903,7 +931,6 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
 
 @dp.message(Command('ai'))
 async def ai_command(message: Message, state: FSMContext, command: CommandObject):
-    await message.delete()
     if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
         if command.args.startswith('-'):
             await sql.change_data_type(command.args[1:], 'ai_access', False)
@@ -1161,7 +1188,7 @@ async def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, encoding='utf-8',
+    logging.basicConfig(level=logging.INFO, encoding='utf-8',
                         handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
                         format='%(asctime)s %(name)s:%(levelname)s %(message)s', datefmt='%m-%d-%Y %H:%M:%S')
     logging.getLogger('hpack').setLevel(logging.WARNING)
