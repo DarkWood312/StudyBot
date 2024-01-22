@@ -95,7 +95,7 @@ async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, a
         text = message.text
         if '--doc' in text:
             send_via_document = True
-            text.replace('--doc', '')
+            text = text.replace('--doc', '')
         translator = Translator()
         source_lang = translator.detect(text).lang
         if source_lang != 'en':
@@ -118,11 +118,14 @@ async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, 
     if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
+    if len(message.photo) == 0 or message.caption == '':
+        await message.answer('Отправьте фотографию с подписью!')
+        return
     try:
         text = message.caption
         if '--doc' in text:
             send_via_document = True
-            text.replace('--doc', '')
+            text = text.replace('--doc', '')
         photo = message.photo[-1]
         photob = await bot.download(photo.file_id)
         photo_name = (await bot.get_file(photo.file_id)).file_path.split('/')[-1]

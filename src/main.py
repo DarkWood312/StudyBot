@@ -421,9 +421,6 @@ async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.photomaker)
 async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
-    if not (message.photo or message.caption):
-        await message.answer('Отправьте фотографию с подписью!')
-        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         await image2image(message, state, bot, ai.photomaker, 'Photomaker')
@@ -431,9 +428,6 @@ async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.hcrt)
 async def hcrt_st(message: Message, state: FSMContext, bot: Bot):
-    if len(message.photo) == 0 or message.caption == '':
-        await message.answer('Отправьте фотографию с подписью!')
-        return
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         await image2image(message, state, bot, ai.hcrt, 'High-Resolution-Controlnet-Tile')
