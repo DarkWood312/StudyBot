@@ -1,10 +1,10 @@
 import asyncio
-import logging
-import random
-import sys
 from datetime import datetime
 from random import shuffle
+from typing import TextIO
 
+from loguru import logger
+import loggerinit.loggerinit
 import aiohttp
 import nltk
 from aiogram.enums import ParseMode
@@ -1182,10 +1182,7 @@ async def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, encoding='utf-8',
-                        handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
-                        format='%(asctime)s %(name)s:%(levelname)s %(message)s', datefmt='%m-%d-%Y %H:%M:%S')
-    logging.getLogger('hpack').setLevel(logging.WARNING)
-    nltk.download('punkt')
-    nltk.download('stopwords')
+    nltk.download('punkt', print_error_to=TextIO())
+    nltk.download('stopwords', print_error_to=TextIO())
+    logger.success('Telegram bot has started!')
     asyncio.run(main())

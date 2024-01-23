@@ -14,3 +14,4 @@ aiohttp==3.9.1
 googletrans==4.0.0rc1
 aiogram-dialog==2.1.0
 pillow==10.2.0
+loguru==0.7.2

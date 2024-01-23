@@ -1,5 +1,6 @@
 import base64
-import logging
+# import logging
+from loguru import logger
 import typing
 from datetime import datetime
 
@@ -60,7 +61,8 @@ async def text2text(message: Message, state: FSMContext, bot: Bot, model: models
         file = await bot.download(file_tid)
         file_name = (await bot.get_file(file_tid)).file_path.split('/')[-1]
         file_direct_link = await get_file_direct_link(file=file, session=session, filename=file_name, expires_in='1h')
-        logging.debug(f'created image with link --> {file_direct_link}')
+        # logging.debug(f'created image with link --> {file_direct_link}')
+        logger.debug(f'created image with link --> {file_direct_link}')
 
     try:
         if 'chatCode' not in data:
@@ -170,19 +172,20 @@ class AI:
                 if r.status == 429:
                     raise AIException.TooManyRequests()
                 out = await r.json()
-        logging.debug(out)
+        # logging.debug(out)
+        logger.debug(out)
 
         if not ('message' in out):
             raise AIException.ApiIsBroken()
         return out['message'], out['chatCode']
 
-    async def midjourney_v4(self, prompt: str, convert_to_bytes: bool = False) -> bytes:
+    async def midjourney_v4(self, prompt: str) -> bytes:
         self.request_params['params']['text'] = prompt
         async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', **self.request_params) as r:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             out = await r.json()
-        logging.debug(out)
+        logger.debug(out)
 
         img = base64.b64decode(out['image_base64'])
         return img
@@ -194,7 +197,7 @@ class AI:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             out = await r.json()
-        logging.debug(out)
+        logger.debug(out)
 
         img = base64.b64decode(out['image_base64'])
         return img
@@ -205,7 +208,7 @@ class AI:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             out = await r.json()
-        logging.debug(out)
+        logger.debug(out)
 
         img = base64.b64decode(out['image_base64'])
         return img
@@ -235,7 +238,7 @@ class AI:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             out = await r.json()
-        logging.debug(out)
+        logger.debug(out)
 
         async with self.session.get(out['image_url']) as r:
             img_bytes = await r.read()
@@ -249,7 +252,7 @@ class AI:
             if r.status == 429:
                 raise AIException.TooManyRequests()
             out = await r.json()
-        logging.debug(out)
+        logger.debug(out)
 
         async with self.session.get(out['image_url']) as r:
             img_bytes = await r.read()
