@@ -121,8 +121,8 @@ async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, a
 
     except AIException.TooManyRequests as e:
         await message.answer(e.message)
-    # except Exception as e:
-    #     await message.answer(f'{e} error')
+    except Exception as e:
+        await message.answer(f'{e} error')
 
 
 async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str,
