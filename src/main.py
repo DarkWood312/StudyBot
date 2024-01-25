@@ -4,7 +4,7 @@ from random import shuffle
 from typing import TextIO
 
 from loguru import logger
-import loggerinit.loggerinit
+import logging_module.logging_module
 import aiohttp
 import nltk
 from aiogram.enums import ParseMode
@@ -13,7 +13,7 @@ from aiogram.filters import Filter, Command, CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton
+    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton, URLInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
@@ -325,10 +325,17 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await message.answer('Чат создан. Напишите запрос: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.chatgpt_turbo)
-        elif 'Midjourney-V4' in message.text:
+        # elif 'Midjourney-V4' in message.text:
+        #     await message.answer('Напишите то, что хотите сгенерировать: ',
+        #                          reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+        elif 'Midjourney-V6' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.midjourney_v4)
+            await state.set_state(AiState.midjourney_v6)
+        elif 'Kandinsky' in message.text:
+            await message.answer('Напишите то, что хотите сгенерировать: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.kandinsky)
         elif 'Playground-V2' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
@@ -383,6 +390,13 @@ async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         ai = AI(session)
         await text2image(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
+
+
+@dp.message(AiState.midjourney_v6)
+async def midjourney_v6_st(message: Message, state: FSMContext, bot: Bot):
+    async with aiohttp.ClientSession() as session:
+        ai = AI(session)
+        await text2image(message, state, bot, ai.midjourney_v6, 'Midjourney-V6')
 
 
 @dp.message(AiState.playground_v2)
@@ -650,17 +664,17 @@ async def orthoepy_test_settings(message: Message):
     await message.answer('Done!')
 
 
-@dp.message(Command('test'))
-async def orthoepy_test(message: Message, state: FSMContext):
-    await cancel_state(state)
-    params = message.text.split(' ')
-
-    await message.answer('<b>Введите свои данные</b> (<i>например:</i> <code>Иванов А, 11Б</code>): ',
-                         parse_mode=ParseMode.HTML)
-    await state.set_state(Test.credentials)
-    if len(params) == 2:
-        if params[1] == 'ans!':
-            await state.update_data({'show_answers': True})
+# @dp.message(Command('test'))
+# async def orthoepy_test(message: Message, state: FSMContext):
+#     await cancel_state(state)
+#     params = message.text.split(' ')
+#
+#     await message.answer('<b>Введите свои данные</b> (<i>например:</i> <code>Иванов А, 11Б</code>): ',
+#                          parse_mode=ParseMode.HTML)
+#     await state.set_state(Test.credentials)
+#     if len(params) == 2:
+#         if params[1] == 'ans!':
+#             await state.update_data({'show_answers': True})
 
 
 @dp.message(Command('orthoepy'))
@@ -960,17 +974,6 @@ async def documents(message: Message):
     inline_kb.adjust(1)
     await message.answer('<b>Документы: </b>', reply_markup=inline_kb.as_markup())
     await message.delete()
-
-
-@dp.message(IsAdmin(), Command('del_msg'))
-async def del_msg_command(message: Message, bot: Bot, cmd: CommandObject):
-    args = cmd.args
-    users = await sql.get_users()
-    for user in users:
-        try:
-            await bot.delete_message(user[0], int(args[0]))
-        except Exception as e:
-            await message.answer(str(e))
 
 
 @dp.message(F.text)

@@ -9,7 +9,8 @@ from aiogram import Bot, html
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, BufferedInputFile
+from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMedia, InputMediaDocument, InputFile, \
+    URLInputFile
 from googletrans import Translator
 
 from config import futureforge_api
@@ -89,7 +90,8 @@ async def text2text(message: Message, state: FSMContext, bot: Bot, model: models
     #     await message.answer(f'{e} error')
 
 
-async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str, send_via_document: bool = False):
+async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str,
+                     send_via_document: bool = False):
     if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
@@ -98,25 +100,33 @@ async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, a
         if '--doc' in text:
             send_via_document = True
             text = text.replace('--doc', '')
+
         translator = Translator()
         source_lang = translator.detect(text).lang
-        if source_lang != 'en':
+        if source_lang != 'en' and not ('kandinsky' in ai_name.lower()):
             text = translator.translate(text, 'en', source_lang).text
+
         img = await ai_method(text)
-        file = BufferedInputFile(img, filename=f"{datetime.now().strftime('%d-%m--%H-%M-%S')}.jpg")
+        if not (isinstance(img, tuple)):
+            img = (img,)
+        media_group = []
         caption = f'<b>{ai_name}🦋:</b> <code>{html.quote(message.text)}</code>\n@{(await bot.get_me()).username}'
-        if send_via_document:
-            await message.answer_document(file, caption=caption)
-        else:
-            await message.answer_photo(file, caption=caption)
-        # await message.answer_document(file, caption=caption, disable_notification=True)
+        for url in img:
+            file = URLInputFile(url)
+            if send_via_document:
+                media_group.append(InputMediaDocument(media=file, caption=caption))
+            else:
+                media_group.append(InputMediaPhoto(media=file, caption=caption))
+        await message.answer_media_group(media=media_group)
+
     except AIException.TooManyRequests as e:
         await message.answer(e.message)
-    except Exception as e:
-        await message.answer(f'{e} error')
+    # except Exception as e:
+    #     await message.answer(f'{e} error')
 
 
-async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str, send_via_document: bool = False):
+async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, ai_name: str,
+                      send_via_document: bool = False):
     if not await ai_func_start(message, state, bot, 'upload_photo'):
         await cancel(message, state)
         return
@@ -134,7 +144,9 @@ async def image2image(message: Message, state: FSMContext, bot: Bot, ai_method, 
         async with aiohttp.ClientSession() as session:
             photourl = await get_file_direct_link(photob, session, photo_name)
             img = await ai_method(photourl, text)
-        params = (BufferedInputFile(img, filename=f"{datetime.now().strftime('%d-%m--%H-%M-%S')}.{photourl.split('.')[-1]}"), f'<b>{ai_name}🦋:</b> <code>{html.quote(text)}</code>\n@{(await bot.get_me()).username}')
+        params = (
+            BufferedInputFile(img, filename=f"{datetime.now().strftime('%d-%m--%H-%M-%S')}.{photourl.split('.')[-1]}"),
+            f'<b>{ai_name}🦋:</b> <code>{html.quote(text)}</code>\n@{(await bot.get_me()).username}')
         if send_via_document:
             await message.answer_document(params[0], caption=params[1])
         else:
@@ -179,7 +191,7 @@ class AI:
             raise AIException.ApiIsBroken()
         return out['message'], out['chatCode']
 
-    async def midjourney_v4(self, prompt: str) -> bytes:
+    async def midjourney_v4(self, prompt: str) -> str:
         self.request_params['params']['text'] = prompt
         async with self.session.post('https://api.futureforge.dev/image/openjourneyv4', **self.request_params) as r:
             if r.status == 429:
@@ -187,10 +199,10 @@ class AI:
             out = await r.json()
         logger.debug(out)
 
-        img = base64.b64decode(out['image_base64'])
-        return img
+        # img = base64.b64decode(out['image_base64'])
+        return out['image_url']
 
-    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ') -> bytes:
+    async def playgroundv2(self, prompt: str, negative_prompt: str = ' ') -> str:
         self.request_params['params']['prompt'] = prompt
         self.request_params['params']['negative_prompt'] = negative_prompt
         async with self.session.post('https://api.futureforge.dev/image/playgroundv2', **self.request_params) as r:
@@ -199,10 +211,10 @@ class AI:
             out = await r.json()
         logger.debug(out)
 
-        img = base64.b64decode(out['image_base64'])
-        return img
+        # img = base64.b64decode(out['image_base64'])
+        return out['image_url']
 
-    async def stable_diffusion_xl_turbo(self, prompt: str) -> bytes:
+    async def stable_diffusion_xl_turbo(self, prompt: str) -> str:
         self.request_params['params']['text'] = prompt
         async with self.session.post('https://api.futureforge.dev/image/sdxl-turbo', **self.request_params) as r:
             if r.status == 429:
@@ -210,8 +222,8 @@ class AI:
             out = await r.json()
         logger.debug(out)
 
-        img = base64.b64decode(out['image_base64'])
-        return img
+        # img = base64.b64decode(out['image_base64'])
+        return out['image_url']
 
     # async def dalle3(self, prompt: str, convert_to_bytes: bool = False) -> str | bytes:
     #     async with self.session.post('https://api.futureforge.dev/image/dalle3',
@@ -258,3 +270,24 @@ class AI:
             img_bytes = await r.read()
 
         return img_bytes
+
+    async def midjourney_v6(self, prompt: str) -> tuple[str, str, str, str]:
+        self.request_params['params']['prompt'] = prompt
+        async with self.session.post('https://api.futureforge.dev/midjourney-v6', **self.request_params) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
+            out = await r.json()
+        logger.debug(out)
+
+        return tuple(out['upscaled_image_urls'])
+
+    async def kandinsky(self, prompt: str, negative_prompt: str = '') -> str:
+        self.request_params['params']['prompt'] = prompt
+        self.request_params['params']['negative_prompt'] = negative_prompt
+        async with self.session.post('https://api.futureforge.dev/image/kandinsky-3', **self.request_params) as r:
+            if r.status == 429:
+                raise AIException.TooManyRequests()
+            out = await r.json()
+        logger.debug(out)
+
+        return out['image_url']

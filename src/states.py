@@ -55,6 +55,8 @@ class AiState(StatesGroup):
     chatgpt_turbo = State()
     gemini_pro = State()
     midjourney_v4 = State()
+    midjourney_v6 = State()
+    kandinsky = State()
     playground_v2 = State()
     stable_diffusion_xl_turbo = State()
     claude = State()

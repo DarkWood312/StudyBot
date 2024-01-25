@@ -4,6 +4,8 @@ import sys
 
 from loguru import logger
 
+format_ = '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
+
 
 class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
@@ -27,8 +29,8 @@ class InterceptHandler(logging.Handler):
 logging.getLogger('hpack').setLevel(logging.ERROR)
 config = {
     "handlers": [
-        {"sink": sys.stdout, "format": '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'},
-        {"sink": "debug.log", "format": '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'},
+        {"sink": sys.stdout, "format": format_},
+        {"sink": "debug.log", "format": format_, "retention": "10 days"},
     ]
 }
 logger.configure(**config)
