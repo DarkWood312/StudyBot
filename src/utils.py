@@ -19,10 +19,10 @@ from pymorphy3 import MorphAnalyzer
 from nltk.corpus import stopwords
 from wordcloud import WordCloud
 
-import src.db as db
-from src.config import sql, proxy
-from src.exceptions import NumDontExistError, BaseDontExistError, WolframException
-from src.keyboards import menu_markup
+import db
+from config import sql, proxy
+from exceptions import NumDontExistError, BaseDontExistError, WolframException
+from keyboards import menu_markup
 
 
 async def remove_chars_from_text(text, chars) -> str:

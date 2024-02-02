@@ -19,21 +19,21 @@ from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
 
-from src.exceptions import *
-from src.keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
+from exceptions import *
+from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
 # from netschool import NetSchool
 
 
-from src.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
+from utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                    num_base_converter,
                    nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
 
-from src.ai import AI, text2text, text2image, image2image
+from ai import AI, text2text, text2image, image2image
 
 from modern_gdz import ModernGDZ
-import src.db as db
-from src.config import token, sql, wolfram_api
-from src.states import *
+import db
+from config import token, sql, wolfram_api
+from states import *
 
 dp = Dispatcher(storage=MemoryStorage())
 
