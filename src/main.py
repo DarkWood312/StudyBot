@@ -19,21 +19,21 @@ from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
 
-from exceptions import *
-from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
+from src.exceptions import *
+from src.keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
 # from netschool import NetSchool
 
 
-from defs import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
-                  num_base_converter,
-                  nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg)
+from src.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
+                   num_base_converter,
+                   nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
 
-from ai import AI, text2text, text2image, image2image
+from src.ai import AI, text2text, text2image, image2image
 
 from modern_gdz import ModernGDZ
-import db
-from config import token, sql, wolfram_api
-from states import *
+import src.db as db
+from src.config import token, sql, wolfram_api
+from src.states import *
 
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -480,6 +480,19 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
     except WolframException.NotSuccess:
         await message.answer('Ошибка. Попробуйте уточнить запрос.')
     return
+
+
+@dp.message(Command('ege_points', 'ep'))
+async def ege_points_cmd(message: types.Message):
+    args = message.text.split(' ')
+    if len(args) > 1:
+        res = await ege_points_converter(int(args[1]), 'all')
+        text = '\n'.join(f'<code>{k.capitalize()}</code>: <b>{v}</b>' for k, v in res.items())
+        await message.answer(text + '\n\n<a href="https://docs.google.com/spreadsheets/d/1FcMBx2UpSEwTuYUgvLQUnhm9VfuGgSKXLbxJdGjTQfY/edit?usp=sharing">Таблица</a>', disable_web_page_preview=True)
+        return
+    await message.answer(f'<b>Использование:</b> /ep {html.quote("<кол-во первичных баллов>")}')
+
+
 
 
 @dp.message(Command('base_converter'))

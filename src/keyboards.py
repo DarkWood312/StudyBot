@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardBu
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from emoji import emojize
 
-from config import sql
+from src.config import sql
 
 
 async def menu_markup(user_id):

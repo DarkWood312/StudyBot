@@ -14,7 +14,7 @@ from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMedi
 from googletrans import Translator
 
 from config import futureforge_api
-from defs import cancel_state, get_file_direct_link
+from utils import cancel_state, get_file_direct_link
 from keyboards import menu_markup
 from exceptions import *
 

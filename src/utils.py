@@ -19,10 +19,10 @@ from pymorphy3 import MorphAnalyzer
 from nltk.corpus import stopwords
 from wordcloud import WordCloud
 
-import db
-from config import sql, proxy
-from exceptions import NumDontExistError, BaseDontExistError, WolframException
-from keyboards import menu_markup
+import src.db as db
+from src.config import sql, proxy
+from src.exceptions import NumDontExistError, BaseDontExistError, WolframException
+from src.keyboards import menu_markup
 
 
 async def remove_chars_from_text(text, chars) -> str:
@@ -185,7 +185,7 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
     if return_ == 'image':
         imgs = [Image.open(io.BytesIO(i)) for i in images]
         overall_size = list(zip(*[i.size for i in imgs]))
-        ready_img = Image.new('RGB', tuple([max(overall_size[0])+10, sum(overall_size[1])+10]), color='white')
+        ready_img = Image.new('RGB', tuple([max(overall_size[0]) + 10, sum(overall_size[1]) + 10]), color='white')
         h = 5
         for i in imgs:
             ready_img.paste(i, (5, h))
@@ -195,6 +195,17 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
         ready_img.save(iobuf, 'png')
 
     return images, iobuf.getvalue()
+
+
+async def ege_points_converter(primitive_points: int, subject: typing.Literal[*db.subjects, 'all']) -> str | bool | dict[str, str | bool]:
+    ege_points = db.ege_points
+    if subject == 'all':
+        res = {}
+        for s in db.subjects:
+            res[s] = ege_points[primitive_points - 1][s]
+    else:
+        res = ege_points[primitive_points - 1][subject]
+    return res
 
 
 class IndigoMath:
