@@ -484,12 +484,14 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(Command('ege_points', 'ep'))
 async def ege_points_cmd(message: types.Message):
+    await message.delete()
     args = message.text.split(' ')
     try:
         if len(args) > 1:
+            text = f'<b>{args[1]} первичных баллов --> </b>\n'
             subjects = db.subjects
             res = await ege_points_converter(int(args[1]), 'all')
-            text = '\n'.join(f'<code>{subjects[k].capitalize()}</code>: <b>{v}</b>' for k, v in res.items())
+            text += '\n'.join(f'<code>{subjects[k].capitalize()}</code>: <b>{v}</b>' for k, v in res.items())
             await message.answer(
                 text + '\n\n<a href="https://docs.google.com/spreadsheets/d/1FcMBx2UpSEwTuYUgvLQUnhm9VfuGgSKXLbxJdGjTQfY/edit?usp=sharing">Таблица</a>',
                 disable_web_page_preview=True)
