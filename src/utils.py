@@ -202,7 +202,9 @@ async def ege_points_converter(primitive_points: int, subject: typing.Literal[*d
     if subject == 'all':
         res = {}
         for s in db.subjects:
-            res[s] = ege_points[primitive_points - 1][s]
+            val = ege_points[primitive_points - 1][s]
+            if val:
+                res[s] = ege_points[primitive_points - 1][s]
     else:
         res = ege_points[primitive_points - 1][subject]
     return res
