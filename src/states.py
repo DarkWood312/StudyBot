@@ -57,6 +57,7 @@ class AiState(StatesGroup):
     midjourney_v4 = State()
     midjourney_v6 = State()
     kandinsky = State()
+    gigachat = State()
     playground_v2 = State()
     stable_diffusion_xl_turbo = State()
     claude = State()

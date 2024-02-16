@@ -13,7 +13,7 @@ from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMedi
     URLInputFile
 from googletrans import Translator
 
-from config import futureforge_api
+from config import futureforge_api, gigachat_api
 from utils import cancel_state, get_file_direct_link
 from keyboards import menu_markup
 from exceptions import *
@@ -32,7 +32,8 @@ models = typing.Literal[
     "code-llama-34b",
     "solar-0-70b",
     "gemini-pro",
-    "mistral-medium"
+    "mistral-medium",
+    'gigachat'
 ]
 
 
@@ -291,3 +292,37 @@ class AI:
         logger.debug(out)
 
         return out['image_url']
+
+
+class GigaAI:
+    def __init__(self, session: aiohttp.client.ClientSession, authorization: str = gigachat_api):
+        self.session = session
+        self.authorization = authorization
+
+    async def get_access_token(self):
+        async with self.session.post('https://ngw.devices.sberbank.ru:9443/api/v2/oauth',
+                                     headers={'Authorization': f'Basic {self.authorization}',
+                                              'Content-Type': 'application/x-www-form-urlencoded',
+                                              'RqUID': 'e6e27457-efe1-4c30-a335-9e3988ec2ccd'},
+                                     data={'scope': 'GIGACHAT_API_PERS'}, ssl=False) as response:
+            data = await response.json()
+            if response.status == 400:
+                raise GigaException.WrongAuthorization()
+            return data['access_token']
+
+    async def chat(self, access_token: str, messages: list[dict[str, str]],
+                   model: typing.Literal['GigaChat:latest', 'GigaChat-Plus', 'GigaChat-Pro'] = 'GigaChat-Pro',
+                   stream: bool = False, **kwargs):
+        payload = {'model': model, 'stream': stream, 'messages': messages, **kwargs}
+        async with self.session.post('https://gigachat.devices.sberbank.ru/api/v1/chat/completions',
+                                     json=payload, ssl=False,
+                                     headers={'Authorization': f'Bearer {access_token}',
+                                              'Content-Type': 'application/json'}) as response:
+            data = await response.json()
+            print(data)
+            return data['choices'][0]['message']['content']
+
+    async def get_file(self, file_id: str):     # TODO
+        async with self.session.get(f'https://gigachat.devices.sberbank.ru/api/v1/files/:{file_id}/content') as response:
+            return await response.read()
+

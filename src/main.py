@@ -28,7 +28,7 @@ from utils import (cancel_state, main_message, orthoepy_word_formatting, command
                    num_base_converter,
                    nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
 
-from ai import AI, text2text, text2image, image2image
+from ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 
 from modern_gdz import ModernGDZ
 import db
@@ -356,6 +356,10 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await message.answer('Чат создан. Напишите запрос: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
             await state.set_state(AiState.mistral_medium)
+        elif 'GigaChat' in message.text:
+            await message.answer('Чат создан. Напишите запрос: ',
+                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.gigachat)
         elif 'Dall-E 3' in message.text:
             await message.answer('Напишите то, что хотите сгенерировать: ',
                                  reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
@@ -424,6 +428,31 @@ async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
     async with aiohttp.ClientSession() as session:
         # ai = AI(session)
         await text2text(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
+
+
+@dp.message(AiState.gigachat)
+async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
+
+    if not await ai_func_start(message, state, bot, 'typing'):
+        await cancel(message, state)
+        return
+
+    data = await state.get_data()
+    async with aiohttp.ClientSession() as session:
+        giga = GigaAI(session)
+        access_token = await giga.get_access_token()
+        if 'giga_messages' not in data:
+            giga_messages = []
+        else:
+            giga_messages = data['giga_messages']
+        giga_messages.append({'role': 'user', 'message': message.text})
+
+        print(giga_messages)
+        answer = await giga.chat(access_token, giga_messages)
+        giga_messages.append({'role': 'assistant', 'message': answer})
+        await state.update_data({'giga_messages': giga_messages})
+        await message.answer('*GigaChat💬:*' + answer if answer != '' else '*без ответа*', parse_mode=ParseMode.MARKDOWN)
+
 
 
 # @dp.message(AiState.dalle3)

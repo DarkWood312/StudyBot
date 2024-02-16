@@ -24,3 +24,10 @@ class AIException:
         def __init__(self, message='Похоже что API сломан сейчас...'):
             self.message = message
             super().__init__(message)
+
+
+class GigaException:
+    class WrongAuthorization(Exception):
+        def __init__(self, message='Wrong authorization'):
+            self.message = message
+            super().__init__(message)
