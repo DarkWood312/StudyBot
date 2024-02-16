@@ -319,7 +319,7 @@ class GigaAI:
                                      headers={'Authorization': f'Bearer {access_token}',
                                               'Content-Type': 'application/json'}) as response:
             data = await response.json()
-            print(data)
+            logger.debug(data)
             return data['choices'][0]['message']['content']
 
     async def get_file(self, file_id: str):     # TODO

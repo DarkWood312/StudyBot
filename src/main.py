@@ -447,7 +447,6 @@ async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
             giga_messages = data['giga_messages']
         giga_messages.append({'role': 'user', 'message': message.text})
 
-        print(giga_messages)
         answer = await giga.chat(access_token, giga_messages)
         giga_messages.append({'role': 'assistant', 'message': answer})
         await state.update_data({'giga_messages': giga_messages})
