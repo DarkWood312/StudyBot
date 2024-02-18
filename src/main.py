@@ -440,17 +440,20 @@ async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     async with aiohttp.ClientSession() as session:
         giga = GigaAI(session)
-        access_token = await giga.get_access_token()
+        access_token = await giga.access_token
         if 'giga_messages' not in data:
             giga_messages = []
         else:
             giga_messages = data['giga_messages']
-        giga_messages.append({'role': 'user', 'message': message.text})
+        giga_messages.append({'role': 'user', 'content': message.text})
 
-        answer = await giga.chat(access_token, giga_messages)
-        giga_messages.append({'role': 'assistant', 'message': answer})
+        answer, imgs = await giga.chat(access_token, giga_messages)
+        giga_messages.append({'role': 'assistant', 'content': answer})
         await state.update_data({'giga_messages': giga_messages})
-        await message.answer('*GigaChat💬:*' + answer if answer != '' else '*без ответа*', parse_mode=ParseMode.MARKDOWN)
+        if len(imgs) > 0:
+            await message.answer_media_group(media=[InputMediaPhoto(media=BufferedInputFile(img, filename='photo.jpg'), caption='<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML) for img in imgs])
+        else:
+            await message.answer('<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML)
 
 
 

@@ -1,4 +1,6 @@
 import base64
+
+from bs4 import BeautifulSoup
 # import logging
 from loguru import logger
 import typing
@@ -299,7 +301,8 @@ class GigaAI:
         self.session = session
         self.authorization = authorization
 
-    async def get_access_token(self):
+    @property
+    async def access_token(self):
         async with self.session.post('https://ngw.devices.sberbank.ru:9443/api/v2/oauth',
                                      headers={'Authorization': f'Basic {self.authorization}',
                                               'Content-Type': 'application/x-www-form-urlencoded',
@@ -312,7 +315,7 @@ class GigaAI:
 
     async def chat(self, access_token: str, messages: list[dict[str, str]],
                    model: typing.Literal['GigaChat:latest', 'GigaChat-Plus', 'GigaChat-Pro'] = 'GigaChat-Pro',
-                   stream: bool = False, **kwargs):
+                   stream: bool = False, **kwargs) -> tuple[str, list[bytes]]:
         payload = {'model': model, 'stream': stream, 'messages': messages, **kwargs}
         async with self.session.post('https://gigachat.devices.sberbank.ru/api/v1/chat/completions',
                                      json=payload, ssl=False,
@@ -320,9 +323,21 @@ class GigaAI:
                                               'Content-Type': 'application/json'}) as response:
             data = await response.json()
             logger.debug(data)
-            return data['choices'][0]['message']['content']
 
-    async def get_file(self, file_id: str):     # TODO
-        async with self.session.get(f'https://gigachat.devices.sberbank.ru/api/v1/files/:{file_id}/content') as response:
+            ans = data['choices'][0]['message']['content']
+            soup = BeautifulSoup(ans, 'lxml')
+            imgs_blocks = soup.find_all('img')
+            imgs = []
+            if len(imgs_blocks) > 0:
+                ans = soup.text
+                identificators = [i.get('src') for i in imgs_blocks]
+                imgs = [await self.get_file(access_token, id_) for id_ in identificators]
+
+            return ans, imgs
+
+    async def get_file(self, access_token: str, file_id: str):
+        async with self.session.get(
+                f'https://gigachat.devices.sberbank.ru/api/v1/files/{file_id}/content', ssl=False,
+                headers={'Authorization': f'Bearer {access_token}', 'Accept': 'application/jpg'}) as response:
             return await response.read()
 
