@@ -4,36 +4,32 @@ from random import shuffle
 from typing import TextIO
 
 from loguru import logger
-import logging_module.logging_module
 import aiohttp
 import nltk
 from aiogram.enums import ParseMode
-from aiogram import Bot, Dispatcher, types, F, Router, html
+from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton, URLInputFile
+    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
+from extra.exceptions import *
+from extra.keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
+import extra.constants as constants
 
-from exceptions import *
-from keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
-# from netschool import NetSchool
+from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
+                         num_base_converter,
+                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
 
+from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 
-from utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
-                   num_base_converter,
-                   nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
-
-from ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
-
-from modern_gdz import ModernGDZ
-import db
-from config import token, sql, wolfram_api
-from states import *
+from gdz.modern_gdz import ModernGDZ
+from extra.config import token, sql, wolfram_api
+from extra.states import *
 
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -255,7 +251,7 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext, b
     wgl = []
     for letter in word:
 
-        if letter.lower() in db.gl:
+        if letter.lower() in constants.gl:
             wgl.append(letter.lower())
             if letter.isupper():
                 syllable = len(wgl)
@@ -284,7 +280,7 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext, b
         await state_Orthoepy_main(call.message, state, bot, call)
         return
 
-    gls = [letter.lower() for letter in words[pos] if letter.lower() in db.gl]
+    gls = [letter.lower() for letter in words[pos] if letter.lower() in constants.gl]
     gls_markup = await orthoepy_word_markup(gls)
     msg = await call.message.answer(await orthoepy_word_formatting(words, pos, amount_of_words),
                                     parse_mode=ParseMode.HTML,
@@ -298,7 +294,7 @@ async def callback_state_Orthoepy_main(call: CallbackQuery, state: FSMContext, b
 
 @dp.message(Test.credentials)
 async def state_Test_credentials(message: Message, state: FSMContext):
-    with open('test_settings.txt') as f:
+    with open('extra/test_settings.txt') as f:
         settings = {}
         for line in f.readlines():
             line = line.strip()
@@ -432,7 +428,6 @@ async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
 
 @dp.message(AiState.gigachat)
 async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
-
     if not await ai_func_start(message, state, bot, 'typing'):
         await cancel(message, state)
         return
@@ -451,10 +446,11 @@ async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
         giga_messages.append({'role': 'assistant', 'content': answer})
         await state.update_data({'giga_messages': giga_messages})
         if len(imgs) > 0:
-            await message.answer_media_group(media=[InputMediaPhoto(media=BufferedInputFile(img, filename='photo.jpg'), caption='<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML) for img in imgs])
+            await message.answer_media_group(media=[InputMediaPhoto(media=BufferedInputFile(img, filename='photo.jpg'),
+                                                                    caption='<b>GigaChat💬:</b>' + html.quote(answer),
+                                                                    parse_mode=ParseMode.HTML) for img in imgs])
         else:
             await message.answer('<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML)
-
 
 
 # @dp.message(AiState.dalle3)
@@ -520,7 +516,7 @@ async def ege_points_cmd(message: types.Message):
     try:
         if len(args) > 1:
             text = f'<b>{args[1]} первичных баллов --> </b>\n'
-            subjects = db.subjects
+            subjects = constants.subjects
             res = await ege_points_converter(int(args[1]), 'all')
             text += '\n'.join(f'<code>{subjects[k].capitalize()}</code>: <b>{v}</b>' for k, v in res.items())
             await message.answer(
@@ -682,7 +678,7 @@ async def bind(message: Message, state: FSMContext):
     await cancel_state(state)
 
     source_markup = InlineKeyboardBuilder()
-    for gdz_source in db.available_gdzs.values():
+    for gdz_source in constants.available_gdzs.values():
         source_markup.row(InlineKeyboardButton(text=gdz_source, callback_data=gdz_source))
     source_markup.row(InlineKeyboardButton(text='Отмена', callback_data='cancel'))
 
@@ -700,7 +696,7 @@ async def orthoepy_test_settings(message: Message):
         await message.answer('Неправильное количество параметров!')
         return
     if params[1] == 'get':
-        with open('test_settings.txt') as f:
+        with open('extra/test_settings.txt') as f:
             await message.answer('\n'.strip().join(f.readlines()))
         return
     if len(params) != 3:
@@ -709,7 +705,7 @@ async def orthoepy_test_settings(message: Message):
 
     receiver = int(params[1])
     amount_of_words = int(params[2])
-    with open('test_settings.txt', 'w') as f:
+    with open('extra/test_settings.txt', 'w') as f:
         f.write(f'''receiver={receiver}\namount_of_words={amount_of_words}'''.strip())
     await message.answer('Done!')
 
@@ -732,14 +728,14 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
     if test_mode is False:
         await cancel_state(state)
 
-    with open('orthoepy.txt', encoding='utf-8') as f:
+    with open('extra/orthoepy.txt', encoding='utf-8') as f:
         words = [w.strip() for w in f.readlines()]
         shuffle(words)
     amount_of_words = len(words)
     if test_mode is not False:
         amount_of_words = test_mode['amount_of_words']
 
-    gls = [letter.lower() for letter in words[0] if letter.lower() in db.gl]
+    gls = [letter.lower() for letter in words[0] if letter.lower() in constants.gl]
 
     rules = await message.answer('<b>Выберите гласную на которую падает ударение.</b>',
                                  reply_markup=await reply_cancel_markup(), parse_mode=ParseMode.HTML)
@@ -839,7 +835,7 @@ async def state_Bind_picked_subject(call: CallbackQuery, state: FSMContext):
 
     mgdz = ModernGDZ(call.from_user.id)
     sgdz = None
-    if state_data['source'] == db.available_gdzs['gdz_putina']:
+    if state_data['source'] == constants.available_gdzs['gdz_putina']:
         sgdz = mgdz.GdzPutinaFun()
     subject_url = await sgdz.get_subject_url(state_data['grade'], call.data)
     books_data = await sgdz.get_books(subject_url)
@@ -1221,7 +1217,7 @@ async def callback(call: CallbackQuery, state: FSMContext):
     elif call.data.startswith('docs_'):
         param = call.data.replace('docs_', '')
 
-        await call.message.answer_document(db.doc_ids[param])
+        await call.message.answer_document(constants.doc_ids[param])
 
     elif call.data.startswith(tuple(['2', '3', '4', '5'])):
         call.message.text = call.data

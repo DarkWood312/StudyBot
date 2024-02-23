@@ -1,7 +1,7 @@
 import os
 
 from psycopg2 import OperationalError
-from sqdb import Sqdb
+from database.sqdb import Sqdb
 from dotenv import load_dotenv
 
 load_dotenv()

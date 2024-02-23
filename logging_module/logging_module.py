@@ -34,4 +34,4 @@ config = {
     ]
 }
 logger.configure(**config)
-logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True, encoding='utf-8')

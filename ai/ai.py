@@ -1,5 +1,3 @@
-import base64
-
 from bs4 import BeautifulSoup
 # import logging
 from loguru import logger
@@ -11,14 +9,13 @@ from aiogram import Bot, html
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMedia, InputMediaDocument, InputFile, \
-    URLInputFile
+from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMediaDocument, URLInputFile
 from googletrans import Translator
 
-from config import futureforge_api, gigachat_api
-from utils import cancel_state, get_file_direct_link
-from keyboards import menu_markup
-from exceptions import *
+from extra.config import futureforge_api, gigachat_api
+from extra.utils import cancel_state, get_file_direct_link
+from extra.keyboards import menu_markup
+from extra.exceptions import *
 
 models = typing.Literal[
     "gpt-3-5",
@@ -321,6 +318,7 @@ class GigaAI:
                                      json=payload, ssl=False,
                                      headers={'Authorization': f'Bearer {access_token}',
                                               'Content-Type': 'application/json'}) as response:
+            global data
             data = await response.json()
             logger.debug(data)
 

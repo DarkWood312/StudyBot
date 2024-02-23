@@ -19,10 +19,10 @@ from pymorphy3 import MorphAnalyzer
 from nltk.corpus import stopwords
 from wordcloud import WordCloud
 
-import db
-from config import sql, proxy
-from exceptions import NumDontExistError, BaseDontExistError, WolframException
-from keyboards import menu_markup
+import extra.constants as constants
+from extra.config import sql, proxy
+from extra.exceptions import NumDontExistError, BaseDontExistError, WolframException
+from extra.keyboards import menu_markup
 
 
 async def remove_chars_from_text(text, chars) -> str:
@@ -67,7 +67,7 @@ async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int |
         amount_of_words = len(words)
     word = ''
     for letter in words[pos]:
-        if letter.lower() in db.gl:
+        if letter.lower() in constants.gl:
             letter = f'<b>{letter}</b>'
         word = word + letter
     output = f'<code>{pos + 1}/{amount_of_words})</code> {word.upper()}'
@@ -98,7 +98,7 @@ async def cancel_state(state: FSMContext, delete: bool = True):
 
 
 async def main_message(message: Message):
-    await message.answer(db.main_message, parse_mode=ParseMode.HTML,
+    await message.answer(constants.main_message, parse_mode=ParseMode.HTML,
                          reply_markup=await menu_markup(message.from_user.id))
 
 
@@ -197,11 +197,11 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
     return images, iobuf.getvalue()
 
 
-async def ege_points_converter(primitive_points: int, subject: typing.Literal[*db.subjects, 'all']) -> str | bool | dict[str, str | bool]:
-    ege_points = db.ege_points
+async def ege_points_converter(primitive_points: int, subject: typing.Literal[*constants.subjects, 'all']) -> str | bool | dict[str, str | bool]:
+    ege_points = constants.ege_points
     if subject == 'all':
         res = {}
-        for s in db.subjects:
+        for s in constants.subjects:
             val = ege_points[primitive_points - 1][s]
             if val:
                 res[s] = ege_points[primitive_points - 1][s]
