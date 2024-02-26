@@ -520,7 +520,8 @@ async def ege_points_cmd(message: types.Message):
             res = await ege_points_converter(int(args[1]), 'all')
             text += '\n'.join(f'<code>{subjects[k].capitalize()}</code>: <b>{v}</b>' for k, v in res.items())
             await message.answer(
-                text + '\n\n<a href="https://docs.google.com/spreadsheets/d/1FcMBx2UpSEwTuYUgvLQUnhm9VfuGgSKXLbxJdGjTQfY/edit?usp=sharing">Таблица</a>',
+                text + '\n\n<a href="https://docs.google.com/spreadsheets/d'
+                       '/1FcMBx2UpSEwTuYUgvLQUnhm9VfuGgSKXLbxJdGjTQfY/edit?usp=sharing">Таблица</a>',
                 disable_web_page_preview=True)
             return
         await message.answer(f'<b>Использование:</b> /ep {html.quote("<кол-во первичных баллов>")}')

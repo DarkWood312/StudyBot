@@ -1,10 +1,24 @@
 import io
 import re
+import textwrap
 import typing
+from dataclasses import dataclass
 from io import BytesIO
+from typing import Dict
+
 import aiohttp
 from bs4 import BeautifulSoup
 from matplotlib import pyplot as plt
+
+from extra import exceptions
+
+
+@dataclass(frozen=True)
+class Task:
+    content: str
+    img: str | None
+    difficulty: int
+    resolution: str
 
 
 class UchusOnline:
@@ -13,7 +27,8 @@ class UchusOnline:
         self.base_url = 'https://uchus.online'
         self.headers = {'Host': 'uchus.online',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
-                        'Cookie': f'PHPSESSID={PHPSESSID}'}
+                        'Cookie': f'PHPSESSID={PHPSESSID}',
+                        'Connection': 'keep-alive'}
         self.cookies = {'PHPSESSID': PHPSESSID}
         self.have_csrf = False
 
@@ -45,7 +60,7 @@ class UchusOnline:
     async def get_tasks(self, bank_url: str, pages: int = 1,
                         search_type: typing.Literal['complexity_asc', 'complexity_desc'] = 'complexity_asc',
                         min_complexity: int = 0,
-                        max_complexity: int = 100) -> dict[int, tuple[str, int, str]]:
+                        max_complexity: int = 100) -> dict[int, Task]:
         if not self.have_csrf:
             await self.csrf
 
@@ -60,7 +75,9 @@ class UchusOnline:
                 t = task.find(class_='panel-body').find('p')
                 task_id = task.get('id').replace('task_', '')
                 difficulty = int(task.find(class_='badge').getText()[:-1])
-                tasks[int(task_id)] = t.getText().replace('\\(', '$').replace('\\)', '$'), difficulty, await self.get_resolution(task_id)
+                img = (self.base_url + task.find('img').get('src')) if task.find('img') is not None else None
+                # tasks[int(task_id)] = t.getText().replace('\\(', '$').replace('\\)', '$'), img, difficulty, await self.get_resolution(task_id)
+                tasks[int(task_id)] = Task(t.getText().replace('\\(', '$').replace('\\)', '$'), img, difficulty, await self.get_resolution(task_id))
 
         return tasks
 
@@ -72,13 +89,14 @@ class UchusOnline:
             embed_url = BeautifulSoup(await response.text(), 'lxml').find('iframe').get('src').replace('\\"', '')
         return f'https://youtube.com/watch?v={embed_url.split("embed/")[1].replace("?", "&")}'
 
-    @staticmethod
-    async def text2image(s) -> BytesIO:
-        fig = plt.figure(dpi=1000, figsize=(len(s) / 7, 3))
+    async def answer(self, task_id: int, answer: str) -> bool:
+        if not self.have_csrf:
+            await self.csrf
 
-        plt.axis('off')
-        plt.text(0.5, 0.5, s, size=10, ha='center', va='center')
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format='png')
-
-        return buffer
+        response = await self.session.post(self.base_url + f'/tasks/check/{task_id}', headers=self.headers, cookies=self.cookies,
+                                           data={'_csrf': self.headers['X-CSRF-Token'], 'answer': answer})
+        res = await response.json()
+        if response.status != 200:
+            raise exceptions.UchusOnlineException.Unauthorized(res)
+        response.close()
+        return res['result']

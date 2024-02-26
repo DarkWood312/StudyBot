@@ -3,6 +3,7 @@ import itertools
 import logging
 import string
 import sys
+import textwrap
 import typing
 
 import aiohttp
@@ -13,6 +14,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bs4 import BeautifulSoup
+from matplotlib import pyplot as plt
 from nltk import word_tokenize, sent_tokenize
 from pymorphy3 import MorphAnalyzer
 
@@ -183,21 +185,14 @@ async def wolfram_getimg(api: str, query: str, return_: typing.Literal['url', 'b
 
     iobuf = None
     if return_ == 'image':
-        imgs = [Image.open(io.BytesIO(i)) for i in images]
-        overall_size = list(zip(*[i.size for i in imgs]))
-        ready_img = Image.new('RGB', tuple([max(overall_size[0]) + 10, sum(overall_size[1]) + 10]), color='white')
-        h = 5
-        for i in imgs:
-            ready_img.paste(i, (5, h))
-            h += i.height
-
-        iobuf = io.BytesIO()
-        ready_img.save(iobuf, 'png')
+        iobuf = await image_gluer(*images)
 
     return images, iobuf.getvalue()
 
 
-async def ege_points_converter(primitive_points: int, subject: typing.Literal[*constants.subjects, 'all']) -> str | bool | dict[str, str | bool]:
+async def ege_points_converter(primitive_points: int,
+                               subject: typing.Literal[*constants.subjects, 'all']) -> str | bool | dict[
+    str, str | bool]:
     ege_points = constants.ege_points
     if subject == 'all':
         res = {}
@@ -210,7 +205,36 @@ async def ege_points_converter(primitive_points: int, subject: typing.Literal[*c
     return res
 
 
+async def image_gluer(*images: tuple[bytes, bool] | bytes) -> io.BytesIO:
+    images = [(i, False) if not (isinstance(i, tuple)) else i for i in images]
+    imgs = [(Image.open(io.BytesIO(i[0])), i[1]) for i in images]
+    overall_size = list(zip(*[i[0].size for i in imgs]))
+    size = tuple([max(overall_size[0]) + 10, sum(overall_size[1]) + 10])
+    ready_img = Image.new('RGBA', size, color='white')
+    h = 5
+    for i in imgs:
+        ready_img.paste(i[0], (size[0] // 2 if i[1] else 5, h))
+        h += i[0].height
+
+    iobuf = io.BytesIO()
+    ready_img.save(iobuf, 'png')
+    return iobuf
+
+
+async def text2image(s) -> io.BytesIO:
+    texts = textwrap.wrap(s, 50)
+    fig = plt.figure(dpi=300, figsize=(5, 0.4 * len(texts)))
+
+    plt.axis('off')
+    plt.text(0.5, 0.5, '\n'.join(texts), size=8, ha='center', va='center')
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+
+    return buffer
+
+
 class IndigoMath:
+
     def __init__(self, session: aiohttp.client.ClientSession, proxy: str = proxy):
         self.session = session
         self.proxy = proxy

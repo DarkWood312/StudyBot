@@ -31,3 +31,9 @@ class GigaException:
         def __init__(self, message='Wrong authorization'):
             self.message = message
             super().__init__(message)
+
+class UchusOnlineException:
+    class Unauthorized(Exception):
+        def __init__(self, message='Unauthorized!'):
+            self.message = message
+            super().__init__(message)
