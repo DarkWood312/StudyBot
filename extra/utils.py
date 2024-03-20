@@ -221,7 +221,7 @@ async def image_gluer(*images: tuple[bytes, bool] | bytes) -> io.BytesIO:
     return iobuf
 
 
-async def text2image(s) -> io.BytesIO:
+async def image_from_text(s) -> io.BytesIO:
     texts = textwrap.wrap(s, 50)
     fig = plt.figure(dpi=300, figsize=(5, 0.4 * len(texts)))
 

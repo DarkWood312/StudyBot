@@ -13,9 +13,11 @@ async def menu_markup(user_id):
     ai_button = KeyboardButton(text='AI🧠🔟')
     wolfram_button = KeyboardButton(text='WolframAlpha📙')
     desmos_button = KeyboardButton(text='Графический калькулятор📊', web_app=WebAppInfo(url='https://tgbot.dwip.fun/'))
+    uchus_button = KeyboardButton(text='Uchus.online🤓')
     markup.row(compress_button)
     markup.row(wolfram_button)
     markup.row(desmos_button)
+    markup.row(uchus_button)
     if await sql.get_data(user_id, 'ai_access'):
         markup.row(ai_button)
     return markup.as_markup(resize_keyboard=True)

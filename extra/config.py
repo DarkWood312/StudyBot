@@ -10,6 +10,7 @@ proxy = os.getenv('PROXY')
 futureforge_api = os.getenv('FUTUREFORGE_API')
 wolfram_api = os.getenv('WOLFRAM_API')
 gigachat_api = os.getenv('GIGACHAT_API')
+uchus_cookies = {k: v for k, v in [i.split('=', 1) for i in os.getenv('UCHUS_COOKIES').split(';')]}
 
 try:
     sql = Sqdb(os.getenv('SQL_HOST'), os.getenv('SQL_PASSWORD'), os.getenv('SQL_PORT'), os.getenv('SQL_DATABASE'), os.getenv('SQL_USER'))

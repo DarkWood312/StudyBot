@@ -23,13 +23,14 @@ import extra.constants as constants
 
 from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                          num_base_converter,
-                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter)
+                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter, image_from_text, image_gluer)
 
 from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 
 from gdz.modern_gdz import ModernGDZ
-from extra.config import token, sql, wolfram_api
+from extra.config import token, sql, wolfram_api, uchus_cookies
 from extra.states import *
+from uchus_online.uchus_online import UchusOnline
 
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -1002,6 +1003,17 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
     await state.set_state(AiState.choose)
 
 
+@dp.message(Command('uchus'))
+async def uchus_command(message: Message, state: FSMContext):
+    await cancel_state(state)
+    async with aiohttp.ClientSession() as session:
+        uo = UchusOnline(session, uchus_cookies)
+        topics = await uo.get_banks_id()
+    markup = InlineKeyboardBuilder()
+    for topic in topics:
+        markup.row(InlineKeyboardButton(text=topic, callback_data=f'uchus_{topic[:3]}'))
+    await message.answer('Выберите группу заданий:', reply_markup=markup.as_markup())
+
 @dp.message(Command('author'))
 async def author(message: Message):
     await message.answer(f'Папа: {hlink("Александр", "https://t.me/DWiPok")}'
@@ -1107,8 +1119,11 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
                                  command=CommandObject(prefix='/', command='ai', mention=None))
                 await message.delete()
             elif 'wolfram' in low:
-                await cancel_state(state)
+                # await cancel_state(state)
                 await wolfram_command(message=message, state=state)
+            elif 'uchus.online' in low:
+                # await cancel_state(state)
+                await uchus_command(message, state)
             elif 'закончить' in low or 'отмена' in low:
                 await message.delete()
                 await cancel_state(state)
@@ -1203,6 +1218,32 @@ async def callback(call: CallbackQuery, state: FSMContext):
         await cancel_state(state)
         # await call.message.answer('Действие отменено.')
         await cancel(call.message, state)
+    elif call.data.startswith('uchus_'):
+        param = call.data.replace('uchus_', '')
+        async with aiohttp.ClientSession() as session:
+            uo = UchusOnline(session, uchus_cookies)
+            topics = await uo.get_banks_id()
+            target_topic = [topic for topic in topics if param in topic][0]
+            tasks = await uo.get_tasks(topics[target_topic], search_type='complexity_desc')
+        markup = InlineKeyboardBuilder()
+        for task_id, task in tasks.items():
+            markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}%', callback_data=f'uchust_{task_id}'))
+        await call.message.answer('Задания:', reply_markup=markup.as_markup())
+
+    elif call.data.startswith('uchust_'):
+        param = call.data.replace('uchust_', '')
+        async with aiohttp.ClientSession() as session:
+            uo = UchusOnline(session, uchus_cookies)
+            task = await uo.get_task(param)
+
+            img_from_text = (await image_from_text(task.content)).getvalue()
+            if task.img is not None:
+                async with session.get(task.img) as response:
+                    image = (await image_gluer(img_from_text, (await response.read(), True))).getvalue()
+            else:
+                image = img_from_text
+        await call.message.answer_photo(BufferedInputFile(image, 'photo.png'), caption=task.resolution)
+
     elif call.data.startswith('alias_del'):
         param = call.data.replace('alias_del-', '')
 
