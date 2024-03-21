@@ -72,7 +72,7 @@ class Sqdb:
         with self.connection:
             self.cursor.execute(f'SELECT * FROM uchus_online WHERE user_id = {user_id}')
             data = self.cursor.fetchall()[0]
-            return UchusOnlineSettings(*data)
+            return UchusOnlineSettings(*data[:-1])
 
     async def add_uchus_user(self, user_id):
         if_exist = await self.is_user_exists(user_id=user_id, table='uchus_online')
