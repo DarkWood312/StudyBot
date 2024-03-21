@@ -44,8 +44,12 @@ class BaseConverter(StatesGroup):
     num = State()
     base = State()
 
+
 class UchusOnlineState(StatesGroup):
     choose = State()
+    ans = State()
+    change_diff = State()
+
 
 class Formulas(StatesGroup):
     formulas_list = State()

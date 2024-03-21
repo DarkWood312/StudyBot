@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 from datetime import datetime
 from random import shuffle
 from typing import TextIO
@@ -18,19 +19,20 @@ from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
 from extra.exceptions import *
-from extra.keyboards import cancel_markup, reply_cancel_markup, menu_markup, orthoepy_word_markup, ai_markup
+from extra.keyboards import *
 import extra.constants as constants
 
 from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
                          num_base_converter,
-                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter, image_from_text, image_gluer)
+                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter,
+                         image_from_text, image_gluer, init_user)
 
 from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 
 from gdz.modern_gdz import ModernGDZ
 from extra.config import token, sql, wolfram_api, uchus_cookies
 from extra.states import *
-from uchus_online.uchus_online import UchusOnline
+from uchus_online.uchus_online import UchusOnline, Task
 
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -109,9 +111,7 @@ async def cancel(message: types.Message, state: FSMContext):
 @dp.message(CommandStart())
 async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
-    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
-                       message.from_user.last_name)
-    await sql.add_wordcloud_user(user_id=message.from_user.id)
+    await init_user(message)
     await main_message(message)
     await message.delete()
 
@@ -508,6 +508,41 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
     except WolframException.NotSuccess:
         await message.answer('Ошибка. Попробуйте уточнить запрос.')
     return
+
+
+@dp.message(UchusOnlineState.ans)
+async def state_uchusonline_ans(message: Message, state: FSMContext):
+    if message.text == 'Закончить❌':
+        await cancel(message, state)
+        return
+
+    task: Task = (await state.get_data())['task']
+    async with aiohttp.ClientSession() as session:
+        uo = UchusOnline(session, uchus_cookies)
+        res: bool = await uo.answer(task.id, message.text)
+
+    add_text = f'\n<b>{html.quote(">>")}</b> <a href="{task.resolution}">Решение</a> <b>{html.quote("<<")}</b>'
+    if res:
+        await message.answer('<b>Правильно!</b>' + add_text)
+    if not res:
+        await message.answer('<b>Неправильно!</b>')
+
+
+@dp.message(UchusOnlineState.change_diff)
+async def state_uchusonline_change_diff(message: Message, state: FSMContext):
+    data = await state.get_data()
+    msg_to_edit: Message = data['msg_to_edit']
+    msg_to_remove: Message = data['msg_to_remove']
+    params = list(map(int, message.text.split(' ', 1)))
+    from_, to_ = (min(params), max(params))
+    await sql.change_data_type(message.from_user.id, 'min_complexity', from_, 'uchus_online')
+    await sql.change_data_type(message.from_user.id, 'max_complexity', to_, 'uchus_online')
+
+    await msg_to_edit.edit_reply_markup(reply_markup=await uchus_online_settings_markup(message.from_user.id))
+    await state.set_state(UchusOnlineState.choose)
+
+    await message.delete()
+    await msg_to_remove.delete()
 
 
 @dp.message(Command('ege_points', 'ep'))
@@ -965,6 +1000,7 @@ async def state_formulas_list(call: CallbackQuery, state: FSMContext):
         InlineKeyboardButton(text='Вернуться назад', callback_data='back')).adjust(1)
     await data['fmsg'].edit_text(text='Выберите тему: ', reply_markup=markup.as_markup())
     await state.set_state(Formulas.formulas_out)
+    await call.answer()
 
 
 @dp.callback_query(Formulas.formulas_out)
@@ -1006,13 +1042,25 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
 @dp.message(Command('uchus'))
 async def uchus_command(message: Message, state: FSMContext):
     await cancel_state(state)
-    async with aiohttp.ClientSession() as session:
-        uo = UchusOnline(session, uchus_cookies)
-        topics = await uo.get_banks_id()
-    markup = InlineKeyboardBuilder()
-    for topic in topics:
-        markup.row(InlineKeyboardButton(text=topic, callback_data=f'uchus_{topic[:3]}'))
-    await message.answer('Выберите группу заданий:', reply_markup=markup.as_markup())
+    await message.answer('Выберите категорию: ', reply_markup=await uchus_online_markup())
+    await state.set_state(UchusOnlineState.choose)
+
+
+@dp.message(UchusOnlineState.choose)
+async def state_uchusonline_choose(message: Message, state: FSMContext):
+    await message.delete()
+    if 'задания' in message.text.lower():
+        async with aiohttp.ClientSession() as session:
+            uo = UchusOnline(session, uchus_cookies)
+            topics = await uo.get_banks_id()
+        markup = InlineKeyboardBuilder()
+        for topic in topics:
+            markup.row(InlineKeyboardButton(text=topic, callback_data=f'uchus_{topic[:3]}'))
+        await message.answer('Выберите группу заданий:', reply_markup=markup.as_markup())
+    elif 'настройки' in message.text.lower():
+        await message.answer('<b>Ваши настройки:</b>',
+                             reply_markup=await uchus_online_settings_markup(message.from_user.id))
+
 
 @dp.message(Command('author'))
 async def author(message: Message):
@@ -1037,9 +1085,7 @@ async def documents(message: Message):
 
 @dp.message(F.text)
 async def other_messages(message: Message, bot: Bot, state: FSMContext):
-    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
-                       message.from_user.last_name)
-    await sql.add_wordcloud_user(user_id=message.from_user.id)
+    await init_user(message)
     # if (message.chat.type == 'group' and message.text.startswith('std')) or message.chat.type != 'group'
     low = message.text.lower()
     # gdz = GDZ(message.from_user.id)
@@ -1220,21 +1266,26 @@ async def callback(call: CallbackQuery, state: FSMContext):
         await cancel(call.message, state)
     elif call.data.startswith('uchus_'):
         param = call.data.replace('uchus_', '')
+        settings = await sql.get_uchus_settings(call.from_user.id)
+
         async with aiohttp.ClientSession() as session:
             uo = UchusOnline(session, uchus_cookies)
             topics = await uo.get_banks_id()
             target_topic = [topic for topic in topics if param in topic][0]
-            tasks = await uo.get_tasks(topics[target_topic], search_type='complexity_desc')
-        markup = InlineKeyboardBuilder()
-        for task_id, task in tasks.items():
-            markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}%', callback_data=f'uchust_{task_id}'))
-        await call.message.answer('Задания:', reply_markup=markup.as_markup())
+            tasks = await uo.get_tasks(topics[target_topic], search_type='complexity_asc' if settings.complexity_asc else 'complexity_desc', min_complexity=settings.min_complexity, max_complexity=settings.max_complexity, pages=2)
+        if len(tasks) > 0:
+            markup = InlineKeyboardBuilder()
+            for task_id, task in tasks.items():
+                markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}%', callback_data=f'uchust_{task_id}'))
+            await call.message.answer('<b>Задания:</b>', reply_markup=markup.as_markup())
+        else:
+            await call.message.answer('<b>Не найдено ни одного задания! Проверьте ваши настройки.</b>')
 
     elif call.data.startswith('uchust_'):
         param = call.data.replace('uchust_', '')
         async with aiohttp.ClientSession() as session:
             uo = UchusOnline(session, uchus_cookies)
-            task = await uo.get_task(param)
+            task = await uo.get_task(int(param))
 
             img_from_text = (await image_from_text(task.content)).getvalue()
             if task.img is not None:
@@ -1242,7 +1293,22 @@ async def callback(call: CallbackQuery, state: FSMContext):
                     image = (await image_gluer(img_from_text, (await response.read(), True))).getvalue()
             else:
                 image = img_from_text
-        await call.message.answer_photo(BufferedInputFile(image, 'photo.png'), caption=task.resolution)
+        await state.set_state(UchusOnlineState.ans)
+        await state.update_data({'task': task})
+        await call.message.answer_photo(BufferedInputFile(image, 'photo.png'), reply_markup=await reply_cancel_markup())
+
+    elif call.data.startswith('uchuss_'):
+        current_settings = await sql.get_uchus_settings(call.from_user.id)
+        param = call.data.replace('uchuss_', '')
+        if param == 'complexity':
+            await sql.change_data_type(call.from_user.id, 'complexity_asc', not (current_settings.complexity_asc),
+                                       'uchus_online')
+            await call.message.edit_reply_markup(reply_markup=await uchus_online_settings_markup(call.from_user.id))
+        elif param == 'diff':
+            mtr = await call.message.answer(
+                'Напишите диапазон <b>через пробел</b>\n<i>Например: </i><code>80 90</code> = <code>от 80% до 90%</code>')
+            await state.update_data({'msg_to_edit': call.message, 'msg_to_remove': mtr})
+            await state.set_state(UchusOnlineState.change_diff)
 
     elif call.data.startswith('alias_del'):
         param = call.data.replace('alias_del-', '')
@@ -1277,3 +1343,6 @@ if __name__ == '__main__':
     nltk.download('stopwords', print_error_to=TextIO())
     logger.success('Telegram bot has started!')
     asyncio.run(main())
+
+
+#TODO запоминалка правильно решенных в бд

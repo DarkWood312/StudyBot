@@ -221,6 +221,13 @@ async def image_gluer(*images: tuple[bytes, bool] | bytes) -> io.BytesIO:
     return iobuf
 
 
+async def init_user(message: Message):
+    await sql.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name,
+                       message.from_user.last_name)
+    await sql.add_wordcloud_user(user_id=message.from_user.id)
+    await sql.add_uchus_user(user_id=message.from_user.id)
+
+
 async def image_from_text(s) -> io.BytesIO:
     texts = textwrap.wrap(s, 50)
     fig = plt.figure(dpi=300, figsize=(5, 0.4 * len(texts)))

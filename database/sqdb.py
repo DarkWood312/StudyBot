@@ -1,8 +1,17 @@
 import json
 import typing
+from dataclasses import dataclass
 
 import psycopg2
 import asyncpg
+
+
+@dataclass(frozen=True)
+class UchusOnlineSettings:
+    user_id: int
+    min_complexity: int
+    max_complexity: int
+    complexity_asc: bool
 
 
 class Sqdb:
@@ -14,7 +23,7 @@ class Sqdb:
                                            user=user)
         self.cursor = self.connection.cursor()
 
-    async def is_user_exists(self, user_id, table = 'users'):
+    async def is_user_exists(self, user_id, table='users'):
         with self.connection:
             self.cursor.execute(f"SELECT COUNT(*) from {table} WHERE user_id = {user_id}")
             if_exist = self.cursor.fetchone()
@@ -58,6 +67,18 @@ class Sqdb:
                 'max_words': data[8]
             }
             return wc_user_settings
+
+    async def get_uchus_settings(self, user_id) -> UchusOnlineSettings:
+        with self.connection:
+            self.cursor.execute(f'SELECT * FROM uchus_online WHERE user_id = {user_id}')
+            data = self.cursor.fetchall()[0]
+            return UchusOnlineSettings(*data)
+
+    async def add_uchus_user(self, user_id):
+        if_exist = await self.is_user_exists(user_id=user_id, table='uchus_online')
+        if not if_exist:
+            with self.connection:
+                self.cursor.execute(f"INSERT INTO uchus_online (user_id) VALUES ({user_id})")
 
     # async def get_logpass(self, user_id) -> dict | None:
     #     with self.connection:
@@ -114,7 +135,7 @@ class Sqdb:
         with self.connection:
             self.cursor.execute(f"SELECT * FROM orthoepy_problems")
             result = self.cursor.fetchall()
-            sorted_result = sorted({i[0]: i[1] for i in result}.items(), reverse=True, key=lambda x:x[1])[:maximum]
+            sorted_result = sorted({i[0]: i[1] for i in result}.items(), reverse=True, key=lambda x: x[1])[:maximum]
             dict_res = {j[0]: j[1] for j in sorted_result}
             return dict_res
 
@@ -123,4 +144,3 @@ class Sqdb:
         if not if_exist:
             with self.connection:
                 self.cursor.execute(f"INSERT INTO wordcloud_settings (user_id) VALUES ({user_id})")
-

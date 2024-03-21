@@ -8,14 +8,14 @@ from typing import Dict
 
 import aiohttp
 from bs4 import BeautifulSoup
-from matplotlib import pyplot as plt
+import bs4
 
 from extra import exceptions
 
 
 @dataclass(frozen=True)
 class Task:
-    task_id: int
+    id: int
     content: str
     img: str | None
     difficulty: int
@@ -111,20 +111,23 @@ class UchusOnline:
                 soup = BeautifulSoup(await response.text(), 'lxml')
             task_blocks = soup.find_all('div', class_='task-block')
             for task in task_blocks:
-                t = task.find(class_='panel-body').find('p')
-                task_id = int(task.get('id').replace('task_', ''))
-                difficulty = int(task.find(class_='badge').getText()[:-1])
-                img = (self.base_url + task.find('img').get('src')) if task.find('img') is not None else None
-                tasks[int(task_id)] = Task(task_id, t.getText().replace('\\(', '$').replace('\\)', '$'), img, difficulty, await self.get_resolution(task_id))
+                # t = task.find(class_='panel-body').find('p')
+                # task_id = int(task.get('id').replace('task_', ''))
+                # difficulty = int(task.find(class_='badge').getText()[:-1])
+                # img = (self.base_url + task.find('img').get('src')) if task.find('img') is not None else None
+                # tasks[int(task_id)] = Task(task_id, t.getText().replace('\\(', '$').replace('\\)', '$'), img, difficulty, await self.get_resolution(task_id))
+                rtask = await self.get_task(soup=task)
+                tasks[rtask.id] = rtask
 
         return tasks
 
-    async def get_task(self, task_id):
-        if not self.initialized:
-            await self.initialize()
+    async def get_task(self, task_id: int = None, soup: bs4.element = None):
+        if not soup:
+            if not self.initialized:
+                await self.initialize()
 
-        async with self.session.get(self.base_url + f'/tasks/show/{task_id}', headers=self.headers, cookies=self.cookies) as response:
-            soup = BeautifulSoup(await response.text(), 'lxml').find(class_='task-block')
+            async with self.session.get(self.base_url + f'/tasks/show/{task_id}', headers=self.headers, cookies=self.cookies) as response:
+                soup = BeautifulSoup(await response.text(), 'lxml').find(class_='task-block')
         t = soup.find_all(class_='panel-body')[-1].find('p')
         task_id = int(soup.get('id').replace('task_', ''))
         difficulty = int(soup.find(class_='badge').getText()[:-1])
