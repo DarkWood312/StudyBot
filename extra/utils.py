@@ -15,11 +15,11 @@ from aiogram.types import Message, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bs4 import BeautifulSoup
 from matplotlib import pyplot as plt
-from nltk import word_tokenize, sent_tokenize
+# from nltk import word_tokenize, sent_tokenize
 from pymorphy3 import MorphAnalyzer
 
-from nltk.corpus import stopwords
-from wordcloud import WordCloud
+# from nltk.corpus import stopwords
+# from wordcloud import WordCloud
 
 import extra.constants as constants
 from extra.config import sql, proxy
@@ -31,34 +31,35 @@ async def remove_chars_from_text(text, chars) -> str:
     return "".join([ch for ch in text if ch not in chars])
 
 
-async def text_analysis(text: str, user_id: int = None, count_digits: bool = False, convert_to_image: bool = True) -> \
-        typing.Dict[str, int | io.BytesIO]:
-    # nltk.download('punkt')
-    # nltk.download('stopwords')
-
-    text = text.strip()
-
-    spec_chars = string.punctuation + '\n\xa0«»\t—…'
-    if not count_digits:
-        spec_chars = spec_chars + string.digits
-    stopw = stopwords.words('russian')
-    bio = None
-    if convert_to_image:
-        wc_user_settings = await sql.get_wordcloud_settings(user_id=user_id)
-        m = MorphAnalyzer(lang='ru')
-        words = ' '.join([m.normal_forms(i)[0] for i in text.split(' ')])
-        wc = WordCloud(**wc_user_settings, stopwords=stopw).generate(text=words)
-        bio = io.BytesIO()
-        bio.name = 'image.png'
-        wc.to_image().save(bio, 'PNG')
-        bio.seek(0)
-
-    text_no_punctuation = ((await remove_chars_from_text(text.lower(), spec_chars))
-                           .replace(' - ', ' ').replace(' – ', ' ').replace(' — ', ' '))
-    wordt = word_tokenize(text_no_punctuation, language='russian')
-    sentencet = sent_tokenize(text, language='russian')
-    return {'amount_of_words': len(wordt), 'amount_of_sentences': len(sentencet), 'amount_of_chars': len(text.lower()),
-            'amount_of_chars_without_space': len(text.lower().replace(' ', '')), 'image': bio}
+# ! Deprecated
+# async def text_analysis(text: str, user_id: int = None, count_digits: bool = False, convert_to_image: bool = True) -> \
+#         typing.Dict[str, int | io.BytesIO]:
+#     # nltk.download('punkt')
+#     # nltk.download('stopwords')
+#
+#     text = text.strip()
+#
+#     spec_chars = string.punctuation + '\n\xa0«»\t—…'
+#     if not count_digits:
+#         spec_chars = spec_chars + string.digits
+#     stopw = stopwords.words('russian')
+#     bio = None
+#     if convert_to_image:
+#         wc_user_settings = await sql.get_wordcloud_settings(user_id=user_id)
+#         m = MorphAnalyzer(lang='ru')
+#         words = ' '.join([m.normal_forms(i)[0] for i in text.split(' ')])
+#         wc = WordCloud(**wc_user_settings, stopwords=stopw).generate(text=words)
+#         bio = io.BytesIO()
+#         bio.name = 'image.png'
+#         wc.to_image().save(bio, 'PNG')
+#         bio.seek(0)
+#
+#     text_no_punctuation = ((await remove_chars_from_text(text.lower(), spec_chars))
+#                            .replace(' - ', ' ').replace(' – ', ' ').replace(' — ', ' '))
+#     wordt = word_tokenize(text_no_punctuation, language='russian')
+#     sentencet = sent_tokenize(text, language='russian')
+#     return {'amount_of_words': len(wordt), 'amount_of_sentences': len(sentencet), 'amount_of_chars': len(text.lower()),
+#             'amount_of_chars_without_space': len(text.lower().replace(' ', '')), 'image': bio}
 
 
 async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int | None = None):

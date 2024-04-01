@@ -6,7 +6,7 @@ from typing import TextIO
 
 from loguru import logger
 import aiohttp
-import nltk
+# import nltk
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
@@ -22,7 +22,7 @@ from extra.exceptions import *
 from extra.keyboards import *
 import extra.constants as constants
 
-from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias, text_analysis,
+from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias,
                          num_base_converter,
                          nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter,
                          image_from_text, image_gluer, init_user)
@@ -138,7 +138,8 @@ async def state_Bind_picked_alias(message: Message, state: FSMContext, bot: Bot)
     old_data = await sql.get_data(message.from_user.id, 'aliases')
     old_data[alias] = state_data['book_url']
 
-    await sql.change_data_jsonb(message.from_user.id, 'aliases', old_data)
+    # await sql.change_data_jsonb(message.from_user.id, 'aliases', old_data)
+    await sql.update_data(message.from_user.id, 'aliases', old_data)
     msg_ = await message.answer(f'Alias: <b>{alias}</b> был успешно добавлен!', parse_mode=ParseMode.HTML)
 
     await cancel_state(state)
@@ -524,8 +525,11 @@ async def state_uchusonline_ans(message: Message, state: FSMContext):
     add_text = f'\n<b>{html.quote(">>")}</b> <a href="{task.resolution}">Решение</a> <b>{html.quote("<<")}</b>'
     if res:
         await message.answer('<b>Правильно!</b>' + add_text)
+        current: list = await sql.get_data(message.from_user.id, 'done', 'uchus_online')
+        current.append(task.id)
+        await sql.update_data(message.from_user.id, 'done', current, 'uchus_online')
     if not res:
-        await message.answer('<b>Неправильно!</b>')
+        await message.answer('<b>Неправильно!</b>' + add_text)
 
 
 @dp.message(UchusOnlineState.change_diff)
@@ -535,8 +539,10 @@ async def state_uchusonline_change_diff(message: Message, state: FSMContext):
     msg_to_remove: Message = data['msg_to_remove']
     params = list(map(int, message.text.split(' ', 1)))
     from_, to_ = (min(params), max(params))
-    await sql.change_data_type(message.from_user.id, 'min_complexity', from_, 'uchus_online')
-    await sql.change_data_type(message.from_user.id, 'max_complexity', to_, 'uchus_online')
+    # await sql.change_data_type(message.from_user.id, 'min_complexity', from_, 'uchus_online')
+    await sql.update_data(message.from_user.id, 'min_complexity', from_, 'uchus_online')
+    # await sql.change_data_type(message.from_user.id, 'max_complexity', to_, 'uchus_online')
+    await sql.update_data(message.from_user.id, 'max_complexity', to_, 'uchus_online')
 
     await msg_to_edit.edit_reply_markup(reply_markup=await uchus_online_settings_markup(message.from_user.id))
     await state.set_state(UchusOnlineState.choose)
@@ -934,7 +940,8 @@ async def kit(message: Message, command: CommandObject):
                  "анг": "https://gdz-putina.fun/klass-11/anglijskij-yazyk/spotlight-evans",
                  "ерш": "https://gdz-putina.fun/klass-10/algebra/samostoyatelnie-i-kontrolnie-raboti-ershova",
                  "геом": "https://gdz-putina.fun/klass-11/geometriya/atanasyan"}
-        await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
+        # await sql.change_data_jsonb(message.from_user.id, 'aliases', kit11)
+        await sql.update_data(message.from_user.id, 'aliases', kit11)
         msg = await message.answer('Готово!')
 
         await asyncio.sleep(3)
@@ -963,11 +970,14 @@ async def WordCloud_settings_input(message: Message, state: FSMContext):
     for line in text.split('\n'):
         k, v = line.split(' - ', 1)
         if v == 'none':
-            await sql.change_data_type(message.from_user.id, k, 'NULL', 'wordcloud_settings')
+            # await sql.change_data_type(message.from_user.id, k, 'NULL', 'wordcloud_settings')
+            await sql.update_data(message.from_user.id, k, None, 'wordcloud_settings')
         elif isinstance(v, str):
-            await sql.change_data(message.from_user.id, k, v, 'wordcloud_settings')
+            # await sql.update_data(message.from_user.id, k, v, 'wordcloud_settings')
+            await sql.update_data(message.from_user.id, k, v, 'wordcloud_settings')
         else:
-            await sql.change_data_type(message.from_user.id, k, v, 'wordcloud_settings')
+            # await sql.change_data_type(message.from_user.id, k, v, 'wordcloud_settings')
+            await sql.update_data(message.from_user.id, k, v, 'wordcloud_settings')
     await message.answer('Успешно!')
     await cancel_state(state)
 
@@ -1025,10 +1035,12 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
 async def ai_command(message: Message, state: FSMContext, command: CommandObject):
     if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
         if command.args.startswith('-'):
-            await sql.change_data_type(command.args[1:], 'ai_access', False)
+            # await sql.change_data_type(command.args[1:], 'ai_access', False)
+            await sql.update_data(command.args[1:], 'ai_access', False)
             await message.answer(f'{command.args[1:]} потерял доступ к AI')
         else:
-            await sql.change_data_type(command.args, 'ai_access', True)
+            # await sql.change_data_type(command.args, 'ai_access', True)
+            await sql.update_data(command.args, 'ai_access', True)
             await message.answer(f'{command.args} получил доступ к AI')
         return
     if not (await sql.get_data(message.from_user.id, 'ai_access')):
@@ -1091,25 +1103,25 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
     # gdz = GDZ(message.from_user.id)
 
     if 'сжатие' in low:
-        await sql.change_data_type(message.from_user.id, 'upscaled',
-                                   False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
+        # await sql.change_data_type(message.from_user.id, 'upscaled', False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
+        await sql.update_data(message.from_user.id, 'upscaled', False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=await menu_markup(message.from_user.id))
-    elif len(low) >= 50:
-        await bot.send_chat_action(message.chat.id, 'typing')
-        text_data = await text_analysis(message.text, user_id=message.from_user.id)
-        aow = text_data['amount_of_words']
-        aos = text_data['amount_of_sentences']
-        aoc = text_data['amount_of_chars']
-        aocws = text_data['amount_of_chars_without_space']
-        image = text_data['image']
-        answer_text = f'<b>Количество слов:</b> <code>{aow}</code>\n<b>Количество предложений:</b> <code>{aos}</code>\n<b>Количество символов:</b> <code>{aoc}</code> (<code>{aocws}</code> без пробелов)'
-        if image is not None:
-            await message.answer_photo(BufferedInputFile(image.getvalue(), filename='image.png'), caption=answer_text,
-                                       parse_mode=ParseMode.HTML)
-        else:
-            await message.answer(answer_text, parse_mode=ParseMode.HTML)
+    # elif len(low) >= 50:
+    #     await bot.send_chat_action(message.chat.id, 'typing')
+    #     text_data = await text_analysis(message.text, user_id=message.from_user.id)
+    #     aow = text_data['amount_of_words']
+    #     aos = text_data['amount_of_sentences']
+    #     aoc = text_data['amount_of_chars']
+    #     aocws = text_data['amount_of_chars_without_space']
+    #     image = text_data['image']
+    #     answer_text = f'<b>Количество слов:</b> <code>{aow}</code>\n<b>Количество предложений:</b> <code>{aos}</code>\n<b>Количество символов:</b> <code>{aoc}</code> (<code>{aocws}</code> без пробелов)'
+    #     if image is not None:
+    #         await message.answer_photo(BufferedInputFile(image.getvalue(), filename='image.png'), caption=answer_text,
+    #                                    parse_mode=ParseMode.HTML)
+    #     else:
+    #         await message.answer(answer_text, parse_mode=ParseMode.HTML)
 
     else:
         async with aiohttp.ClientSession() as session:
@@ -1275,8 +1287,12 @@ async def callback(call: CallbackQuery, state: FSMContext):
             tasks = await uo.get_tasks(topics[target_topic], search_type='complexity_asc' if settings.complexity_asc else 'complexity_desc', min_complexity=settings.min_complexity, max_complexity=settings.max_complexity, pages=2)
         if len(tasks) > 0:
             markup = InlineKeyboardBuilder()
+            completed_tasks = await sql.get_data(call.from_user.id, 'done', 'uchus_online')
             for task_id, task in tasks.items():
-                markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}%', callback_data=f'uchust_{task_id}'))
+                addition = ''
+                if task_id in completed_tasks:
+                    addition = ' ✅'
+                markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}% {addition}', callback_data=f'uchust_{task_id}'))
             await call.message.answer('<b>Задания:</b>', reply_markup=markup.as_markup())
         else:
             await call.message.answer('<b>Не найдено ни одного задания! Проверьте ваши настройки.</b>')
@@ -1301,8 +1317,8 @@ async def callback(call: CallbackQuery, state: FSMContext):
         current_settings = await sql.get_uchus_settings(call.from_user.id)
         param = call.data.replace('uchuss_', '')
         if param == 'complexity':
-            await sql.change_data_type(call.from_user.id, 'complexity_asc', not (current_settings.complexity_asc),
-                                       'uchus_online')
+            # await sql.change_data_type(call.from_user.id, 'complexity_asc', not (current_settings.complexity_asc), 'uchus_online')
+            await sql.update_data(call.from_user.id, 'complexity_asc', not current_settings.complexity_asc, 'uchus_online')
             await call.message.edit_reply_markup(reply_markup=await uchus_online_settings_markup(call.from_user.id))
         elif param == 'diff':
             mtr = await call.message.answer(
@@ -1316,7 +1332,8 @@ async def callback(call: CallbackQuery, state: FSMContext):
         old_data = dict(await sql.get_data(call.from_user.id, 'aliases'))
         old_data.pop(param)
 
-        await sql.change_data_jsonb(call.from_user.id, 'aliases', old_data)
+        # await sql.change_data_jsonb(call.from_user.id, 'aliases', old_data)
+        await sql.update_data(call.from_user.id, 'aliases', old_data)
         await call.answer(f'Alias \'{param}\' успешно удален!')
 
         al_text = await command_alias(call.from_user.id)
@@ -1339,8 +1356,8 @@ async def main():
 
 
 if __name__ == '__main__':
-    nltk.download('punkt', print_error_to=TextIO())
-    nltk.download('stopwords', print_error_to=TextIO())
+    # nltk.download('punkt', print_error_to=TextIO())
+    # nltk.download('stopwords', print_error_to=TextIO())
     logger.success('Telegram bot has started!')
     asyncio.run(main())
 

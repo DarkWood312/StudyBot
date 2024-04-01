@@ -104,18 +104,27 @@ class Sqdb:
     #         self.cursor.execute(f"SELECT {data} FROM {table} WHERE {mark_name} = '{mark_data}'")
     #         return self.cursor.fetchone()[0]
 
-    async def change_data(self, user_id, name, data, table='users'):
-        with self.connection:
-            self.cursor.execute(f"UPDATE {table} set {name} = '{data}' WHERE user_id = {user_id}")
+    # ! Deprecated
+    # async def update_data(self, user_id, name, data: str, table='users'):
+    #     with self.connection:
+    #         self.cursor.execute(f"UPDATE {table} set {name} = '{data}' WHERE user_id = {user_id}")
 
-    async def change_data_type(self, user_id, name, data, table='users'):
-        with self.connection:
-            self.cursor.execute(f'UPDATE {table} set {name} = {data} WHERE user_id = {user_id}')
+    # ! Deprecated
+    # async def change_data_type(self, user_id, name, data, table='users'):
+    #     with self.connection:
+    #         self.cursor.execute(f'UPDATE {table} set {name} = {data} WHERE user_id = {user_id}')
 
-    async def change_data_jsonb(self, user_id, name: str, data: dict):
-        data = json.dumps(data)
+    # ! Deprecated
+    # async def change_data_jsonb(self, user_id, name: str, data: dict, table='users'):
+    #     data = json.dumps(data)
+    #     with self.connection:
+    #         self.cursor.execute(f'UPDATE {table} set {name} = %s::jsonb WHERE user_id = %s', (data, user_id))
+
+    async def update_data(self, user_id, name: str, data, table='users'):
+        if isinstance(data, dict):
+            data = json.dumps(data)
         with self.connection:
-            self.cursor.execute(f'UPDATE users set {name} = %s::jsonb WHERE user_id = %s', (data, user_id))
+            self.cursor.execute(f'UPDATE {table} set {name} = %s WHERE user_id = %s', (data, user_id))
 
     async def add_orthoepy(self, word: str, counter: int = 1):
         with self.connection:

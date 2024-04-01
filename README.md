@@ -24,7 +24,7 @@ create table users
     user_name    text,
     user_surname text,
     admin        boolean default false,
-    aliases      jsonb[] default '{}'::jsonb[],
+    aliases      jsonb default '{}'::jsonb,
     ai_access    boolean default true
 );
 ```
@@ -50,5 +50,17 @@ create table wordcloud_settings
     min_font_size    integer          default 4,
     max_font_size    integer,
     max_words        integer          default 200
+);
+```
+
+#### uchus_online
+```
+create table public.uchus_online
+(
+    user_id        bigint not null,
+    min_complexity integer   default 0,
+    max_complexity integer   default 100,
+    complexity_asc boolean   default true,
+    done           integer[] default '{}'::integer[]
 );
 ```
