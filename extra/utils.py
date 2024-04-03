@@ -245,10 +245,9 @@ class IndigoMath:
 
     def __init__(self, session: aiohttp.client.ClientSession):
         self.session = session
-        self.proxy = proxy
 
     async def formulas_groups(self) -> typing.Dict[str, typing.Dict[str, str]]:
-        async with self.session.get('https://www.indigomath.ru/', proxy=self.proxy) as r:
+        async with self.session.get('https://www.indigomath.ru/') as r:
             soup = BeautifulSoup(await r.text(), 'lxml').find_all(id='myTabContent')
             main_groups = {i.find_previous(class_='nav-link active').get_text(): i.find_all(class_='nav flex-column')
                            for i in soup}
@@ -267,7 +266,7 @@ class IndigoMath:
         if isinstance(urls, str):
             urls = [urls]
         for url in urls:
-            async with self.session.get(url, proxy=self.proxy) as fres:
+            async with self.session.get(url) as fres:
                 formulas_content = [f.find('a') for f in
                                     BeautifulSoup(await fres.text(), 'lxml').find_all(class_='s_formula_row')]
                 for f in formulas_content:
@@ -283,7 +282,7 @@ class IndigoMath:
     async def formulas_searcher(self, query: str) -> typing.Dict[str, typing.List[str]]:
         url = f'https://www.indigomath.ru/poisk/?data%5Btags%5D={query}&data%5Bf_category%5D&page=1'
 
-        async with self.session.get(url, proxy=self.proxy) as r:
+        async with self.session.get(url) as r:
             pages_content = BeautifulSoup(await r.text(), 'lxml').find('ul', class_='pagination')
 
             pages_to_parse = [url]

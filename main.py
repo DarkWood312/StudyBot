@@ -1193,6 +1193,8 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
             elif 'uchus.online' in low:
                 # await cancel_state(state)
                 await uchus_command(message, state)
+            elif 'орфоэпия' in low:
+                await orthoepy(message, state)
             elif 'закончить' in low or 'отмена' in low:
                 await message.delete()
                 await cancel_state(state)

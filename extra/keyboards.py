@@ -85,7 +85,7 @@ async def uchus_online_settings_markup(user_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=f'Диапазон сложности: {table_data.min_complexity}...{table_data.max_complexity}',
                              callback_data='uchuss_diff'))
     settings_markup.row(
-        InlineKeyboardButton(text=f'Сортировать по возрастанию сложности: {"ДА" if table_data.complexity_asc else "НЕТ"}',
+        InlineKeyboardButton(text=f'Сложность: {"↗️" if table_data.complexity_asc else "↘️"}',
                              callback_data='uchuss_complexity'))
 
     return settings_markup.as_markup()
