@@ -1,5 +1,5 @@
 ### AI на основе бесплатного [FutureForge API](https://api.futureforge.dev/docs#/). Выражаю отдельную благодарность автору за такой проект
-### Environmental Variables
+### Environment Variables
 ```
 API_TOKEN=
 SQL_HOST=
@@ -7,9 +7,12 @@ SQL_USER=
 SQL_PORT=
 SQL_DATABASE=
 SQL_PASSWORD=
-PROXY=
+REDIS_HOST=
+REDIS_PORT=
+REDIS_PASSWORD=
 FUTUREFORGE_API=
 WOLFRAM_API=
+GIGACHAT_API=
 UCHUS_COOKIES=
 ```
 
