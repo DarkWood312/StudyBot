@@ -12,6 +12,8 @@ from aiogram import Bot, Dispatcher, types, F, html
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
+from redis.asyncio.client import Redis
 from aiogram.types import InlineKeyboardButton, Message, \
     CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
@@ -30,11 +32,16 @@ from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, c
 from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 
 from gdz.modern_gdz import ModernGDZ
-from extra.config import token, sql, wolfram_api, uchus_cookies
+from extra.config import *
 from extra.states import *
 from uchus_online.uchus_online import UchusOnline, Task
 
-dp = Dispatcher(storage=MemoryStorage())
+if redis_host:
+    dp = Dispatcher(storage=RedisStorage(Redis(host=redis_host, port=redis_port, password=redis_password)))
+    logger.success('The bot is running on Redis! :)')
+else:
+    dp = Dispatcher(storage=MemoryStorage())
+    logger.warning('The bot is running on MemoryStorage!')
 
 
 class IsAdmin(Filter):
@@ -1060,6 +1067,10 @@ async def uchus_command(message: Message, state: FSMContext):
 
 @dp.message(UchusOnlineState.choose)
 async def state_uchusonline_choose(message: Message, state: FSMContext):
+    if 'закончить' in message.text.lower():
+        await cancel(message, state)
+        return
+
     await message.delete()
     if 'задания' in message.text.lower():
         async with aiohttp.ClientSession() as session:
@@ -1360,6 +1371,3 @@ if __name__ == '__main__':
     # nltk.download('stopwords', print_error_to=TextIO())
     logger.success('Telegram bot has started!')
     asyncio.run(main())
-
-
-#TODO запоминалка правильно решенных в бд

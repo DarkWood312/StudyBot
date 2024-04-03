@@ -22,7 +22,7 @@ from pymorphy3 import MorphAnalyzer
 # from wordcloud import WordCloud
 
 import extra.constants as constants
-from extra.config import sql, proxy
+from extra.config import sql
 from extra.exceptions import NumDontExistError, BaseDontExistError, WolframException
 from extra.keyboards import menu_markup
 
@@ -243,7 +243,7 @@ async def image_from_text(s) -> io.BytesIO:
 
 class IndigoMath:
 
-    def __init__(self, session: aiohttp.client.ClientSession, proxy: str = proxy):
+    def __init__(self, session: aiohttp.client.ClientSession):
         self.session = session
         self.proxy = proxy
 

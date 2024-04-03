@@ -74,7 +74,7 @@ async def uchus_online_markup() -> ReplyKeyboardMarkup:
     markup = ReplyKeyboardBuilder()
     topics_button = KeyboardButton(text='Задания📓')
     settings_button = KeyboardButton(text='Настройки⚙️')
-    markup.row(topics_button).row(settings_button)
+    markup.row(topics_button).row(settings_button).row(KeyboardButton(text='Закончить❌'))
     return markup.as_markup(resize_keyboard=True)
 
 
