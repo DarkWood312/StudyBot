@@ -75,3 +75,9 @@ class AiState(StatesGroup):
 
 class WolframState(StatesGroup):
     main = State()
+
+
+class EncryptionState(StatesGroup):
+    encrypt_st = State()
+    decrypt_st = State()
+    final_st = State()

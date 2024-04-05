@@ -1,3 +1,4 @@
+import base64
 import io
 import itertools
 import logging
@@ -17,7 +18,7 @@ from bs4 import BeautifulSoup
 from matplotlib import pyplot as plt
 # from nltk import word_tokenize, sent_tokenize
 from pymorphy3 import MorphAnalyzer
-
+from cryptography.fernet import Fernet
 # from nltk.corpus import stopwords
 # from wordcloud import WordCloud
 
@@ -239,6 +240,26 @@ async def image_from_text(s) -> io.BytesIO:
     plt.savefig(buffer, format='png')
 
     return buffer
+
+
+class Encryption:
+    def __init__(self, key: str):
+        if len(key) < 32:
+            key = key + '@' * (32 - len(key))
+        elif len(key) > 32:
+            key = key[:32]
+        self.key = key
+        self.crypt = Fernet(base64.urlsafe_b64encode(self.key.encode()))
+
+    async def encrypt(self, to_encrypt: str):
+        encrypted = self.crypt.encrypt(to_encrypt.encode())
+
+        return encrypted.decode()
+
+    async def decrypt(self, encrypted: str):
+        decrypted = self.crypt.decrypt(encrypted)
+
+        return decrypted.decode()
 
 
 class IndigoMath:

@@ -1,40 +1,27 @@
 import asyncio
-import dataclasses
 from datetime import datetime
 from random import shuffle
-from typing import TextIO
 
-from loguru import logger
-import aiohttp
 # import nltk
-from aiogram.enums import ParseMode
-from aiogram import Bot, Dispatcher, types, F, html
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
-from redis.asyncio.client import Redis
-from aiogram.types import InlineKeyboardButton, Message, \
-    CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile, KeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from googletrans import Translator
-from extra.exceptions import *
-from extra.keyboards import *
-import extra.constants as constants
-
-from extra.utils import (cancel_state, main_message, orthoepy_word_formatting, command_alias,
-                         num_base_converter,
-                         nums_from_input, IndigoMath, get_file_direct_link, wolfram_getimg, ege_points_converter,
-                         image_from_text, image_gluer, init_user)
+from redis.asyncio.client import Redis
 
 from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
-
-from gdz.modern_gdz import ModernGDZ
 from extra.config import *
+from extra.keyboards import *
 from extra.states import *
+from extra.utils import *
+from gdz.modern_gdz import ModernGDZ
 from uchus_online.uchus_online import UchusOnline, Task
+
+# from typing import TextIO
 
 if redis_host:
     dp = Dispatcher(storage=RedisStorage(Redis(host=redis_host, port=redis_port, password=redis_password)))
@@ -557,6 +544,56 @@ async def state_uchusonline_change_diff(message: Message, state: FSMContext):
     await message.delete()
     await msg_to_remove.delete()
 
+
+@dp.message(Command('encryption'))
+async def encryption_command(message: Message, state: FSMContext):
+    markup = InlineKeyboardBuilder()
+    markup.row(InlineKeyboardButton(text='Зашифровать', callback_data='encryption_encrypt'))
+    markup.row(InlineKeyboardButton(text='Расшифровать', callback_data='encryption_decrypt'))
+    await message.answer('<b>Выберите действие: </b>', reply_markup=markup.as_markup())
+    await message.delete()
+
+
+@dp.message(EncryptionState.encrypt_st)
+async def encryption_encrypt_state(message: Message, state: FSMContext):
+    msgs_to_del = (await state.get_data())['delete_this_msgs']
+    msg = await message.answer('<b>Введите ключ для расшифровки в будущем: </b> (на английском без спец. символов)')
+    await state.update_data({'text': message.text, 'method': 'encrypt', 'delete_this_msgs': msgs_to_del + [msg]})
+    await state.set_state(EncryptionState.final_st)
+
+    await message.delete()
+
+
+@dp.message(EncryptionState.decrypt_st)
+async def encryption_decrypt_state(message: Message, state: FSMContext):
+    msgs_to_del = (await state.get_data())['delete_this_msgs']
+    await state.update_data({'text': message.text, 'method': 'decrypt'})
+    msg = await message.answer('<b>Введите ключ для расшифровки: </b> (на английском без спец. символов)')
+    await state.set_state(EncryptionState.final_st)
+
+    await message.delete()
+    await state.update_data({'delete_this_msgs': msgs_to_del + [msg]})
+
+
+@dp.message(EncryptionState.final_st)
+async def encryption_final_state(message: Message, state: FSMContext):
+    data = await state.get_data()
+    method = data['method']
+    text = data['text']
+    key = message.text
+    enc = Encryption(key)
+    try:
+        if method == 'encrypt':
+            result = await enc.encrypt(text)
+        else:
+            result = await enc.decrypt(text)
+
+        await message.answer(f'<b>Результат:</b> <code>{html.quote(result)}</code>\n<b>Ключ:</b> <code>{html.quote(key)}</code>')
+        await cancel_state(state)
+
+    except ValueError:
+        await message.answer('Ключ должен быть на английском языке без спец. символов!')
+    await message.delete()
 
 @dp.message(Command('ege_points', 'ep'))
 async def ege_points_cmd(message: types.Message):
@@ -1115,7 +1152,8 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
 
     if 'сжатие' in low:
         # await sql.change_data_type(message.from_user.id, 'upscaled', False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
-        await sql.update_data(message.from_user.id, 'upscaled', False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
+        await sql.update_data(message.from_user.id, 'upscaled',
+                              False if await sql.get_data(message.from_user.id, 'upscaled') is True else True)
         await message.answer(
             f'Отправка фотографий с сжатием {"выключена" if await sql.get_data(message.from_user.id, "upscaled") == True else "включена"}!',
             reply_markup=await menu_markup(message.from_user.id))
@@ -1297,7 +1335,10 @@ async def callback(call: CallbackQuery, state: FSMContext):
             uo = UchusOnline(session, uchus_cookies)
             topics = await uo.get_banks_id()
             target_topic = [topic for topic in topics if param in topic][0]
-            tasks = await uo.get_tasks(topics[target_topic], search_type='complexity_asc' if settings.complexity_asc else 'complexity_desc', min_complexity=settings.min_complexity, max_complexity=settings.max_complexity, pages=2)
+            tasks = await uo.get_tasks(topics[target_topic],
+                                       search_type='complexity_asc' if settings.complexity_asc else 'complexity_desc',
+                                       min_complexity=settings.min_complexity, max_complexity=settings.max_complexity,
+                                       pages=2)
         if len(tasks) > 0:
             markup = InlineKeyboardBuilder()
             completed_tasks = await sql.get_data(call.from_user.id, 'done', 'uchus_online')
@@ -1305,7 +1346,8 @@ async def callback(call: CallbackQuery, state: FSMContext):
                 addition = ''
                 if task_id in completed_tasks:
                     addition = ' ✅'
-                markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}% {addition}', callback_data=f'uchust_{task_id}'))
+                markup.row(InlineKeyboardButton(text=f'{task_id}, {task.difficulty}% {addition}',
+                                                callback_data=f'uchust_{task_id}'))
             await call.message.answer('<b>Задания:</b>', reply_markup=markup.as_markup())
         else:
             await call.message.answer('<b>Не найдено ни одного задания! Проверьте ваши настройки.</b>')
@@ -1331,7 +1373,8 @@ async def callback(call: CallbackQuery, state: FSMContext):
         param = call.data.replace('uchuss_', '')
         if param == 'complexity':
             # await sql.change_data_type(call.from_user.id, 'complexity_asc', not (current_settings.complexity_asc), 'uchus_online')
-            await sql.update_data(call.from_user.id, 'complexity_asc', not current_settings.complexity_asc, 'uchus_online')
+            await sql.update_data(call.from_user.id, 'complexity_asc', not current_settings.complexity_asc,
+                                  'uchus_online')
             await call.message.edit_reply_markup(reply_markup=await uchus_online_settings_markup(call.from_user.id))
         elif param == 'diff':
             mtr = await call.message.answer(
@@ -1360,6 +1403,16 @@ async def callback(call: CallbackQuery, state: FSMContext):
     elif call.data.startswith(tuple(['2', '3', '4', '5'])):
         call.message.text = call.data
         await average_mark(message=call.message, state=state)
+
+    elif call.data.startswith('encryption_'):
+        await cancel_state(state)
+        if call.data == 'encryption_encrypt':
+            msg = await call.message.answer('<b>Введите текст для зашифровки: </b>')
+            await state.set_state(EncryptionState.encrypt_st)
+        else:
+            msg = await call.message.answer('<b>Введите шифр для расшифровки: </b>')
+            await state.set_state(EncryptionState.decrypt_st)
+        await state.update_data({'delete_this_msgs': [msg]})
     await call.answer()
 
 
