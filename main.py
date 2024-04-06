@@ -107,6 +107,8 @@ async def start_message(message: Message, state: FSMContext):
     await cancel_state(state)
     await init_user(message)
     await main_message(message)
+    if message.from_user.id == 740687747 or message.from_user.id == 493006916:
+        await message.answer_photo('AgACAgIAAxkBAAEqtapmEUXryHVkpri0-nUhusFy4JquygACP9oxG2ILiEgdGR4OiDWwQgEAAwIAA3cAAzQE')
     await message.delete()
 
 
@@ -796,7 +798,7 @@ async def orthoepy_test_settings(message: Message):
         f.write(f'''receiver={receiver}\namount_of_words={amount_of_words}'''.strip())
     await message.answer('Done!')
 
-
+# ! Disabled
 # @dp.message(Command('test'))
 # async def orthoepy_test(message: Message, state: FSMContext):
 #     await cancel_state(state)
