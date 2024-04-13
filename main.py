@@ -588,12 +588,14 @@ async def encryption_final_state(message: Message, state: FSMContext):
         else:
             result = await enc.decrypt(text)
 
-        await message.answer(f'<b>Результат:</b> <code>{html.quote(result)}</code>\n<b>Ключ:</b> <code>{html.quote(key)}</code>')
+        await message.answer(
+            f'<b>Результат:</b> <code>{html.quote(result)}</code>\n<b>Ключ:</b> <code>{html.quote(key)}</code>')
         await cancel_state(state)
 
     except ValueError:
         await message.answer('Ключ должен быть на английском языке без спец. символов!')
     await message.delete()
+
 
 @dp.message(Command('ege_points', 'ep'))
 async def ege_points_cmd(message: types.Message):
@@ -795,6 +797,7 @@ async def orthoepy_test_settings(message: Message):
     with open('extra/test_settings.txt', 'w') as f:
         f.write(f'''receiver={receiver}\namount_of_words={amount_of_words}'''.strip())
     await message.answer('Done!')
+
 
 # ! Disabled
 # @dp.message(Command('test'))
