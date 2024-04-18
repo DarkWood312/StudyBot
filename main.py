@@ -675,9 +675,10 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
 @dp.message(RootExtr.init)
 async def state_rootextr_main(message: Message, state: FSMContext):
     ans = message.text
-    if 'закончить' in message.text:
+    if 'закончить' in message.text.lower():
         await cancel_state(state)
         await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
+        return
     if not re.compile('^[0-9]+ [0-9]+$').match(ans):
         await message.answer('Некорректно введены границы')
         return
