@@ -27,6 +27,9 @@ class Bind(StatesGroup):
 class Orthoepy(StatesGroup):
     main = State()
 
+class RootExtr(StatesGroup):
+    init = State()
+    main = State()
 
 class Test(StatesGroup):
     credentials = State()

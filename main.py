@@ -1,4 +1,6 @@
 import asyncio
+import random
+import re
 from datetime import datetime
 from random import shuffle
 
@@ -670,6 +672,48 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
     await message.answer(text, parse_mode=ParseMode.HTML)
 
 
+@dp.message(RootExtr.init)
+async def state_rootextr_main(message: Message, state: FSMContext):
+    ans = message.text
+    if 'закончить' in message.text:
+        await cancel_state(state)
+        await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
+    if not re.compile('^[0-9]+ [0-9]+$').match(ans):
+        await message.answer('Некорректно введены границы')
+        return
+    borders = list(map(int, message.text.split(' ', 1)))
+    range_ = list(range(min(borders), max(borders) + 1))
+
+    first_question = random.choice(range_)
+
+    await state.update_data({'range': [n for n in range_ if n != first_question], 'solution': first_question, 'overall': 0, 'right': 0})
+
+    await message.answer(f'√{first_question**2} --> ')
+
+    await state.set_state(RootExtr.main)
+
+
+@dp.message(RootExtr.main)
+async def state_rootextr_main(message: Message, state: FSMContext):
+    data = await state.get_data()
+    if 'закончить' in message.text.lower() or len(data['range']) == 0:
+        await message.answer(f'Стастистика:\nВсего: {data["overall"]}\nПравильных: {data["right"]}\nНеправильных: {data["overall"] - data["right"]}', reply_markup=await menu_markup(message.from_user.id))
+        await cancel_state(state)
+        return
+
+    is_right = False
+    if message.text == str(data['solution']):
+        await message.answer('Правильно!')
+        is_right = True
+    else:
+        await message.answer(f'Неправильно!\nПравильный ответ: <code>{data["solution"]}</code>')
+
+    q = random.choice(data['range'])
+
+    await message.answer(f'√{q**2} --> ')
+
+    await state.update_data({'solution': q, 'range': [n for n in data['range'] if n != q], 'overall': data['overall'] + 1, 'right': (data['right'] + 1) if is_right else data['right']})
+
 @dp.message(F.text.contains('2764'))
 async def mpassword(message: Message):
     await message.answer(hcode('U+2764 U+FE0F U+200D U+1FA79'))
@@ -846,6 +890,13 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
          'gls': gls})
     if test_mode is not False:
         await state.update_data({'test_mode': True})
+
+
+@dp.message(Command('root_extraction'))
+async def root_extraction(message: Message, state: FSMContext):
+    await cancel_state(state)
+    await message.answer('Введите границы чисел, которые будут возводиться в квадрат. \nНапример: 10 20 (=> нужно будет извлечь корень у чисел от 100 до 400)', reply_markup=await reply_cancel_markup())
+    await state.set_state(RootExtr.init)
 
 
 @dp.message(Command('ostats'))
