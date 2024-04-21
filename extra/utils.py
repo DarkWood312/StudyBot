@@ -2,6 +2,7 @@ import base64
 import io
 import itertools
 import logging
+import random
 import string
 import sys
 import textwrap
@@ -76,6 +77,13 @@ async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int |
         word = word + letter
     output = f'<code>{pos + 1}/{amount_of_words})</code> {word.upper()}'
     return output
+
+
+async def root_extraction_formatting(state: FSMContext):
+    data = await state.get_data()
+    q = random.choice(data['range'])
+    await state.update_data({'range': [n for n in data['range'] if n != q], 'solution': q})
+    return f'<b>√</b><code>{q ** 2}</code> <b>--></b> '
 
 
 async def command_alias(user_id):

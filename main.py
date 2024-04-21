@@ -675,22 +675,26 @@ async def BaseConverter_num(message: Message, state: FSMContext, bot: Bot):
 @dp.message(RootExtr.init)
 async def state_rootextr_main(message: Message, state: FSMContext):
     ans = message.text
+    await message.delete()
+    data = await state.get_data()
+
     if 'закончить' in message.text.lower():
         await cancel_state(state)
         await message.answer('Готово!', reply_markup=await menu_markup(message.from_user.id))
         return
+
     if not re.compile('^[0-9]+ [0-9]+$').match(ans):
         await message.answer('Некорректно введены границы')
         return
+
     borders = list(map(int, message.text.split(' ', 1)))
     range_ = list(range(min(borders), max(borders) + 1))
 
-    first_question = random.choice(range_)
+    await state.update_data({'range': range_, 'overall': 0, 'right': 0})
 
-    await state.update_data({'range': [n for n in range_ if n != first_question], 'solution': first_question, 'overall': 0, 'right': 0})
+    msgd = await message.answer(await root_extraction_formatting(state))
 
-    await message.answer(f'√{first_question**2} --> ')
-
+    await state.update_data({'delete_this_msgs': data['delete_this_msgs'] + [msgd]})
     await state.set_state(RootExtr.main)
 
 
@@ -698,22 +702,23 @@ async def state_rootextr_main(message: Message, state: FSMContext):
 async def state_rootextr_main(message: Message, state: FSMContext):
     data = await state.get_data()
     if 'закончить' in message.text.lower() or len(data['range']) == 0:
-        await message.answer(f'Стастистика:\nВсего: {data["overall"]}\nПравильных: {data["right"]}\nНеправильных: {data["overall"] - data["right"]}', reply_markup=await menu_markup(message.from_user.id))
+        await message.delete()
+        await message.answer(f'<b>Статистика по извлечению корня:</b>\n<i>Всего</i> - <code>{data["overall"]}</code>\n<i>Правильных</i> - <code>{data["right"]}</code>\n<i>Неправильных</i> - <code>{data["overall"] - data["right"]}</code>\n<i>В процентах</i> - <code>{(data["right"] / data["overall"] * 100 if data["overall"] != 0 else 0):.2f}%</code>', reply_markup=await menu_markup(message.from_user.id))
         await cancel_state(state)
         return
 
     is_right = False
     if message.text == str(data['solution']):
-        await message.answer('Правильно!')
+        rnr = await message.answer('Правильно!')
         is_right = True
     else:
-        await message.answer(f'Неправильно!\nПравильный ответ: <code>{data["solution"]}</code>')
+        rnr = await message.answer(f'Неправильно!\nПравильный ответ: <code>{data["solution"]}</code>')
 
-    q = random.choice(data['range'])
+    msgd = await message.answer(await root_extraction_formatting(state))
 
-    await message.answer(f'√{q**2} --> ')
+    await state.update_data(
+        {'overall': data['overall'] + 1, 'right': (data['right'] + 1) if is_right else data['right'], 'delete_this_msgs': data['delete_this_msgs'] + [msgd, rnr, message]})
 
-    await state.update_data({'solution': q, 'range': [n for n in data['range'] if n != q], 'overall': data['overall'] + 1, 'right': (data['right'] + 1) if is_right else data['right']})
 
 @dp.message(F.text.contains('2764'))
 async def mpassword(message: Message):
@@ -896,8 +901,13 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
 @dp.message(Command('root_extraction'))
 async def root_extraction(message: Message, state: FSMContext):
     await cancel_state(state)
-    await message.answer('Введите границы чисел, которые будут возводиться в квадрат. \nНапример: 10 20 (=> нужно будет извлечь корень у чисел от 100 до 400)', reply_markup=await reply_cancel_markup())
+    await message.delete()
+
+    msgd = await message.answer(
+        '<b>Введите границы чисел, которые будут возводиться в квадрат.</b> \n<i>Например:</i> <code>10 20</code> (=> нужно будет извлечь корень у чисел от 100 до 400)',
+        reply_markup=await reply_cancel_markup())
     await state.set_state(RootExtr.init)
+    await state.update_data({'delete_this_msgs': [msgd]})
 
 
 @dp.message(Command('ostats'))
