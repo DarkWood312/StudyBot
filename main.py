@@ -688,7 +688,7 @@ async def state_rootextr_main(message: Message, state: FSMContext):
         return
 
     borders = list(map(int, message.text.split(' ', 1)))
-    range_ = list(range(min(borders), max(borders) + 1))
+    range_ = list(range(min(borders) if min(borders) > 0 else 1, (max(borders) + 1) if max(borders) <= 1000 else 1001))
 
     await state.update_data({'range': range_, 'overall': 0, 'right': 0})
 
@@ -904,7 +904,7 @@ async def root_extraction(message: Message, state: FSMContext):
     await message.delete()
 
     msgd = await message.answer(
-        '<b>Введите границы чисел, которые будут возводиться в квадрат.</b> \n<i>Например:</i> <code>10 20</code> (=> нужно будет извлечь корень у чисел от 100 до 400)',
+        '<b>Введите границы чисел (от 1 до 1000), которые будут возводиться в квадрат.</b> \n<i>Например:</i> <code>10 20</code> (=> нужно будет извлечь корень у чисел от 100 до 400)',
         reply_markup=await reply_cancel_markup())
     await state.set_state(RootExtr.init)
     await state.update_data({'delete_this_msgs': [msgd]})
