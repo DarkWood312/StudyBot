@@ -547,7 +547,7 @@ async def state_uchusonline_change_diff(message: Message, state: FSMContext):
     await msg_to_remove.delete()
 
 
-@dp.message(Command('encryption'))
+@dp.message(Command('encryption', 'en'))
 async def encryption_command(message: Message, state: FSMContext):
     markup = InlineKeyboardBuilder()
     markup.row(InlineKeyboardButton(text='Зашифровать', callback_data='encryption_encrypt'))
@@ -619,7 +619,7 @@ async def ege_points_cmd(message: types.Message):
         await message.answer('-')
 
 
-@dp.message(Command('base_converter'))
+@dp.message(Command('base_converter', 'ba', 'bc'))
 async def base_converter(message: Message, state: FSMContext):
     await cancel_state(state)
     await state.set_state(BaseConverter.num)
@@ -863,7 +863,7 @@ async def orthoepy_test_settings(message: Message):
 #             await state.update_data({'show_answers': True})
 
 
-@dp.message(Command('orthoepy'))
+@dp.message(Command('orthoepy', 'or'))
 async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict = False):
     if test_mode is False:
         await cancel_state(state)
@@ -898,7 +898,7 @@ async def orthoepy(message: Message, state: FSMContext, test_mode: bool | dict =
         await state.update_data({'test_mode': True})
 
 
-@dp.message(Command('root_extraction'))
+@dp.message(Command('root_extraction', 're', 'ro'))
 async def root_extraction(message: Message, state: FSMContext):
     await cancel_state(state)
     await message.delete()
@@ -910,7 +910,7 @@ async def root_extraction(message: Message, state: FSMContext):
     await state.update_data({'delete_this_msgs': [msgd]})
 
 
-@dp.message(Command('ostats'))
+@dp.message(Command('ostats', 'os'))
 async def orthoepy_statistics(message: Message, state: FSMContext):
     await cancel_state(state)
     maximum = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else 10
@@ -1091,7 +1091,7 @@ async def WordCloud_settings_input(message: Message, state: FSMContext):
     await cancel_state(state)
 
 
-@dp.message(Command('formulas'))
+@dp.message(Command('formulas', 'f', 'fo'))
 async def formulas_cmd(message: Message, state: FSMContext, msg_to_edit: Message = None):
     await cancel_state(state, False)
     async with aiohttp.ClientSession() as session:
