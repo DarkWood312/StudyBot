@@ -10,10 +10,9 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, InputMediaDocument, URLInputFile
-from googletrans import Translator
 
 from extra.config import futureforge_api, gigachat_api
-from extra.utils import cancel_state, get_file_direct_link
+from extra.utils import cancel_state, get_file_direct_link, Translation
 from extra.keyboards import menu_markup
 from extra.exceptions import *
 
@@ -101,10 +100,10 @@ async def text2image(message: Message, state: FSMContext, bot: Bot, ai_method, a
             send_via_document = True
             text = text.replace('--doc', '')
 
-        translator = Translator()
-        source_lang = translator.detect(text).lang
+        translator = Translation()
+        source_lang = await translator.detect(text)
         if source_lang != 'en' and not ('kandinsky' in ai_name.lower()):
-            text = translator.translate(text, 'en', source_lang).text
+            text = await translator.translate(text, 'en', source_lang)
 
         img = await ai_method(text)
         if not (isinstance(img, tuple)):

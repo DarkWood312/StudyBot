@@ -323,3 +323,21 @@ class IndigoMath:
                                   e.getText().isdigit()]
 
             return await self.get_formulas(pages_to_parse)
+
+
+class Translation:
+    def __init__(self, api_key: str):
+        self.url = 'https://deep-translate1.p.rapidapi.com/language/translate/v2'
+        self.headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "deep-translate1.p.rapidapi.com"}
+
+    async def detect(self, text: str) -> str:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.url + '/detect', headers=self.headers, json={'q': text}) as response:
+                return (await response.json())['data']['detections'][0]['language']
+
+    async def translate(self, text: str, target: str, source: str = 'auto') -> str:
+        if source == target:
+            return text
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.url, headers=self.headers, json={'q': text, 'target': target, 'source': source}) as response:
+                return (await response.json())['data']['translations']['translatedText']

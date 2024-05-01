@@ -1,4 +1,3 @@
-### AI на основе бесплатного [FutureForge API](https://api.futureforge.dev/docs#/). Выражаю отдельную благодарность автору за такой проект
 ### Environment Variables
 ```
 API_TOKEN=
@@ -13,6 +12,7 @@ REDIS_PASSWORD=
 FUTUREFORGE_API=
 WOLFRAM_API=
 GIGACHAT_API=
+DEEP_TRANSLATE_API=
 UCHUS_COOKIES=
 ```
 

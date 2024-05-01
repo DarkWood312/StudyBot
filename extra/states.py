@@ -61,19 +61,11 @@ class Formulas(StatesGroup):
 
 class AiState(StatesGroup):
     choose = State()
-    chatgpt_turbo = State()
-    gemini_pro = State()
-    midjourney_v4 = State()
-    midjourney_v6 = State()
-    kandinsky = State()
-    gigachat = State()
-    playground_v2 = State()
-    stable_diffusion_xl_turbo = State()
-    claude = State()
-    mistral_medium = State()
-    dalle3 = State()
-    photomaker = State()
-    hcrt = State()
+    llm_choose = State()
+    llm = State()
+    dalle = State()
+    sd_choose = State()
+    sd = State()
 
 
 class WolframState(StatesGroup):

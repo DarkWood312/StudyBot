@@ -43,7 +43,7 @@ main_message = f'''
 
 <b>WolframAlpha --> </b>/wolfram
 
-<b>AI --> </b>/ai - by <a href='https://api.futureforge.dev/docs#/'>FutureForge❤️</a>
+<b>AI --> </b>/ai
 
 <b>Uchus.online --> </b>/uchus
 

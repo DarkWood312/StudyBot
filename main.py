@@ -12,16 +12,16 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaDocument, BufferedInputFile
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
-from googletrans import Translator
 from redis.asyncio.client import Redis
 
-from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
+# from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 from extra.config import *
 from extra.keyboards import *
 from extra.states import *
 from extra.utils import *
 from gdz.modern_gdz import ModernGDZ
 from uchus_online.uchus_online import UchusOnline, Task
+from visioncraft_ai.visioncraft_ai import VisionAI
 
 # from typing import TextIO
 
@@ -315,161 +315,163 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
     else:
         markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
         await message.delete()
-        if 'ChatGPT-Turbo' in message.text:
-            await message.answer('Чат создан. Напишите запрос: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.chatgpt_turbo)
-        # elif 'Midjourney-V4' in message.text:
-        #     await message.answer('Напишите то, что хотите сгенерировать: ',
-        #                          reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-        elif 'Midjourney-V6' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.midjourney_v6)
-        elif 'Kandinsky' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.kandinsky)
-        elif 'Playground-V2' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.playground_v2)
-        elif 'Gemini-Pro' in message.text:
-            await message.answer('Чат создан. Напишите запрос и/или отправьте фотографию: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.gemini_pro)
-        elif 'Stable Diffusion XL Turbo' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.stable_diffusion_xl_turbo)
-        elif 'Claude' in message.text:
-            await message.answer('Чат создан. Напишите запрос: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.claude)
-        elif 'Mistral Medium' in message.text:
-            await message.answer('Чат создан. Напишите запрос: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.mistral_medium)
-        elif 'GigaChat' in message.text:
-            await message.answer('Чат создан. Напишите запрос: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.gigachat)
-        elif 'Dall-E 3' in message.text:
-            await message.answer('Напишите то, что хотите сгенерировать: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.dalle3)
-        elif 'Photomaker' in message.text:
-            await message.answer('Отправьте 1 фото с подписью для генерации: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.photomaker)
-        elif 'High-Resolution' in message.text:
-            await message.answer('Отправьте 1 фото с подписью для генерации: ',
-                                 reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
-            await state.set_state(AiState.hcrt)
+        if 'LLM' in message.text:
+            llms = await VisionAI.get_llm_models()
+            await message.answer(
+                '\n'.join(f"<b>{i}</b>. <code>{model}</code>" for i, model in enumerate(llms, start=1)),
+                reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.llm_choose)
+        elif 'Dalle' in message.text:
+            await message.answer('Пишите ваш запрос.', reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await state.set_state(AiState.dalle)
+        elif 'Stable Diffusion models' in message.text:
+            pass
         else:
             await message.answer('Нажмите кнопку')
             return
 
 
-@dp.message(AiState.chatgpt_turbo)
-async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        await text2text(message, state, bot, 'gpt-3-5-turbo', 'ChatGPT-Turbo', session)
-
-
-@dp.message(AiState.gemini_pro)
-async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        await text2text(message, state, bot, 'gemini-pro', 'Gemini-Pro', session)
-
-
-@dp.message(AiState.midjourney_v4)
-async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await text2image(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
-
-
-@dp.message(AiState.midjourney_v6)
-async def midjourney_v6_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await text2image(message, state, bot, ai.midjourney_v6, 'Midjourney-V6')
-
-
-@dp.message(AiState.playground_v2)
-async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await text2image(message, state, bot, ai.playgroundv2, 'Playground-V2')
-
-
-@dp.message(AiState.stable_diffusion_xl_turbo)
-async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await text2image(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
-
-
-@dp.message(AiState.claude)
-async def claude_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        await text2text(message, state, bot, 'claude-instant', 'Claude', session)
-
-
-@dp.message(AiState.mistral_medium)
-async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        # ai = AI(session)
-        await text2text(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
-
-
-@dp.message(AiState.gigachat)
-async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
-    if not await ai_func_start(message, state, bot, 'typing'):
+@dp.message(AiState.llm_choose)
+async def AiState_llm_choose(message: Message, state: FSMContext):
+    if message.text == 'Закончить разговор❌':
         await cancel(message, state)
         return
 
+    llms = await VisionAI.get_llm_models()
+    model = llms[int(message.text) - 1]
+    await message.answer(f'<b>Выбранная модель:</b> <code>{model}</code>\nПишите ваш запрос.')
+    await state.update_data({'model': model, 'messages': None})
+    await state.set_state(AiState.llm)
+
+
+@dp.message(AiState.llm)
+async def AiState_llm(message: Message, state: FSMContext):
+    if message.text == 'Закончить разговор❌':
+        await cancel(message, state)
+        return
     data = await state.get_data()
-    async with aiohttp.ClientSession() as session:
-        giga = GigaAI(session)
-        access_token = await giga.access_token
-        if 'giga_messages' not in data:
-            giga_messages = []
-        else:
-            giga_messages = data['giga_messages']
-        giga_messages.append({'role': 'user', 'content': message.text})
+    ai = VisionAI(visionai_api)
+    response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
 
-        answer, imgs = await giga.chat(access_token, giga_messages)
-        giga_messages.append({'role': 'assistant', 'content': answer})
-        await state.update_data({'giga_messages': giga_messages})
-        if len(imgs) > 0:
-            await message.answer_media_group(media=[InputMediaPhoto(media=BufferedInputFile(img, filename='photo.jpg'),
-                                                                    caption='<b>GigaChat💬:</b>' + html.quote(answer),
-                                                                    parse_mode=ParseMode.HTML) for img in imgs])
-        else:
-            await message.answer('<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML)
+    await message.answer(response[-1]['content'])
+
+    await state.update_data({'messages': response})
 
 
-# @dp.message(AiState.dalle3)
-# async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
+@dp.message(AiState.dalle)
+async def AiState_dalle(message: Message, state: FSMContext):
+    if message.text == 'Закончить разговор❌':
+        await cancel(message, state)
+        return
+
+    tr = Translation(deep_translate_api)
+    text = await tr.translate(message.text, 'en', await tr.detect(message.text))
+
+    ai = VisionAI(visionai_api)
+    image = await ai.generate_image(text)
+
+    await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'))
+
+
+# @dp.message(AiState.chatgpt_turbo)
+# async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         await text2text(message, state, bot, 'gpt-3-5-turbo', 'ChatGPT-Turbo', session)
+
+
+# @dp.message(AiState.gemini_pro)
+# async def gemini_pro_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         await text2text(message, state, bot, 'gemini-pro', 'Gemini-Pro', session)
+#
+#
+# @dp.message(AiState.midjourney_v4)
+# async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
 #         ai = AI(session)
-#         await text2image(message, state, bot, ai.dalle3, 'Dall-E 3')
-
-
-@dp.message(AiState.photomaker)
-async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await image2image(message, state, bot, ai.photomaker, 'Photomaker')
-
-
-@dp.message(AiState.hcrt)
-async def hcrt_st(message: Message, state: FSMContext, bot: Bot):
-    async with aiohttp.ClientSession() as session:
-        ai = AI(session)
-        await image2image(message, state, bot, ai.hcrt, 'High-Resolution-Controlnet-Tile')
+#         await text2image(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
+#
+#
+# @dp.message(AiState.midjourney_v6)
+# async def midjourney_v6_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await text2image(message, state, bot, ai.midjourney_v6, 'Midjourney-V6')
+#
+#
+# @dp.message(AiState.playground_v2)
+# async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await text2image(message, state, bot, ai.playgroundv2, 'Playground-V2')
+#
+#
+# @dp.message(AiState.stable_diffusion_xl_turbo)
+# async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await text2image(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
+#
+#
+# @dp.message(AiState.claude)
+# async def claude_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         await text2text(message, state, bot, 'claude-instant', 'Claude', session)
+#
+#
+# @dp.message(AiState.mistral_medium)
+# async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         # ai = AI(session)
+#         await text2text(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
+#
+#
+# @dp.message(AiState.gigachat)
+# async def gigachat_st(message: Message, state: FSMContext, bot: Bot):
+#     if not await ai_func_start(message, state, bot, 'typing'):
+#         await cancel(message, state)
+#         return
+#
+#     data = await state.get_data()
+#     async with aiohttp.ClientSession() as session:
+#         giga = GigaAI(session)
+#         access_token = await giga.access_token
+#         if 'giga_messages' not in data:
+#             giga_messages = []
+#         else:
+#             giga_messages = data['giga_messages']
+#         giga_messages.append({'role': 'user', 'content': message.text})
+#
+#         answer, imgs = await giga.chat(access_token, giga_messages)
+#         giga_messages.append({'role': 'assistant', 'content': answer})
+#         await state.update_data({'giga_messages': giga_messages})
+#         if len(imgs) > 0:
+#             await message.answer_media_group(media=[InputMediaPhoto(media=BufferedInputFile(img, filename='photo.jpg'),
+#                                                                     caption='<b>GigaChat💬:</b>' + html.quote(answer),
+#                                                                     parse_mode=ParseMode.HTML) for img in imgs])
+#         else:
+#             await message.answer('<b>GigaChat💬:</b>' + html.quote(answer), parse_mode=ParseMode.HTML)
+#
+#
+# # @dp.message(AiState.dalle3)
+# # async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
+# #     async with aiohttp.ClientSession() as session:
+# #         ai = AI(session)
+# #         await text2image(message, state, bot, ai.dalle3, 'Dall-E 3')
+#
+#
+# @dp.message(AiState.photomaker)
+# async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await image2image(message, state, bot, ai.photomaker, 'Photomaker')
+#
+#
+# @dp.message(AiState.hcrt)
+# async def hcrt_st(message: Message, state: FSMContext, bot: Bot):
+#     async with aiohttp.ClientSession() as session:
+#         ai = AI(session)
+#         await image2image(message, state, bot, ai.hcrt, 'High-Resolution-Controlnet-Tile')
 
 
 @dp.message(Command('wolfram'))
@@ -490,10 +492,10 @@ async def wolfram_msg_main_st(message: Message, state: FSMContext, bot: Bot):
         return
 
     text = message.text
-    translator = Translator()
-    source_lang = translator.detect(text).lang
+    translator = Translation(deep_translate_api)
+    source_lang = await translator.detect(text)
     if source_lang != 'en':
-        text = translator.translate(text, 'en', source_lang).text
+        text = await translator.translate(text, 'en', source_lang)
 
     await bot.send_chat_action(message.chat.id, 'upload_photo')
     try:
@@ -703,7 +705,9 @@ async def state_rootextr_main(message: Message, state: FSMContext):
     data = await state.get_data()
     if 'закончить' in message.text.lower() or len(data['range']) == 0:
         await message.delete()
-        await message.answer(f'<b>Статистика по извлечению корня:</b>\n<i>Всего</i> - <code>{data["overall"]}</code>\n<i>Правильных</i> - <code>{data["right"]}</code>\n<i>Неправильных</i> - <code>{data["overall"] - data["right"]}</code>\n<i>В процентах</i> - <code>{(data["right"] / data["overall"] * 100 if data["overall"] != 0 else 0):.2f}%</code>', reply_markup=await menu_markup(message.from_user.id))
+        await message.answer(
+            f'<b>Статистика по извлечению корня:</b>\n<i>Всего</i> - <code>{data["overall"]}</code>\n<i>Правильных</i> - <code>{data["right"]}</code>\n<i>Неправильных</i> - <code>{data["overall"] - data["right"]}</code>\n<i>В процентах</i> - <code>{(data["right"] / data["overall"] * 100 if data["overall"] != 0 else 0):.2f}%</code>',
+            reply_markup=await menu_markup(message.from_user.id))
         await cancel_state(state)
         return
 
@@ -717,7 +721,8 @@ async def state_rootextr_main(message: Message, state: FSMContext):
     msgd = await message.answer(await root_extraction_formatting(state))
 
     await state.update_data(
-        {'overall': data['overall'] + 1, 'right': (data['right'] + 1) if is_right else data['right'], 'delete_this_msgs': data['delete_this_msgs'] + [msgd, rnr, message]})
+        {'overall': data['overall'] + 1, 'right': (data['right'] + 1) if is_right else data['right'],
+         'delete_this_msgs': data['delete_this_msgs'] + [msgd, rnr, message]})
 
 
 @dp.message(F.text.contains('2764'))
@@ -1155,7 +1160,7 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
     if not (await sql.get_data(message.from_user.id, 'ai_access')):
         await message.answer('У вас нет доступа к этой функции.')
         return
-    msg = await message.answer('Выберите AI', reply_markup=await ai_markup())
+    msg = await message.answer('Выберите AI', reply_markup=await visionai_markup())
     await state.update_data({'delete_this_msg': msg})
     await state.set_state(AiState.choose)
 
