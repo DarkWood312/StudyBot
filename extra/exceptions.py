@@ -25,6 +25,11 @@ class AIException:
             self.message = message
             super().__init__(message)
 
+    class Error(Exception):
+        def __init__(self, message='error'):
+            self.message = message
+            super().__init__(message)
+
 
 class GigaException:
     class WrongAuthorization(Exception):

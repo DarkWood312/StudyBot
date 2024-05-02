@@ -66,6 +66,7 @@ class AiState(StatesGroup):
     dalle = State()
     sd_choose = State()
     sd = State()
+    text2gif = State()
 
 
 class WolframState(StatesGroup):

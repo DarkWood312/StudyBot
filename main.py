@@ -1,5 +1,5 @@
 import asyncio
-import random
+from extra.exceptions import AIException
 import re
 from datetime import datetime
 from random import shuffle
@@ -314,19 +314,22 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         # await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
         await cancel(message, state)
     else:
-        markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌'))
+        markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌')).as_markup(resize_keyboard=True, one_time_keyboard=True)
         await message.delete()
         if 'LLM' in message.text:
             llms = await VisionAI.get_llm_models()
             await message.answer(
                 '\n'.join(f"<b>{i}</b>. <code>{model}</code>" for i, model in enumerate(llms, start=1)),
-                reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+                reply_markup=markup)
             await state.set_state(AiState.llm_choose)
         elif 'Dalle' in message.text:
-            await message.answer('Пишите ваш запрос.', reply_markup=markup.as_markup(resize_keyboard=True, one_time_keyboard=True))
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
             await state.set_state(AiState.dalle)
         elif 'Stable Diffusion models' in message.text:
             pass
+        elif 'Сгенерировать GIF' in message.text:
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
+            await state.set_state(AiState.text2gif)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -354,11 +357,16 @@ async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
 
     data = await state.get_data()
     ai = VisionAI(visionai_api)
-    response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
+    try:
+        response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
 
-    await message.answer(response[-1]['content'])
+        await message.answer(f'<b>{data["model"]}</b>💬: {response[-1]["content"]}')
 
-    await state.update_data({'messages': response})
+        await state.update_data({'messages': response})
+
+    except AIException.Error as e:
+        logger.error(f'VisionAI error! {e}')
+        await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
 
 @dp.message(AiState.dalle)
@@ -374,8 +382,22 @@ async def AiState_dalle(message: Message, state: FSMContext, bot: Bot):
     ai = VisionAI(visionai_api)
     image = await ai.generate_image(text)
 
-    await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'))
+    await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'), caption=f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>')
 
+@dp.message(AiState.text2gif)
+async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
+    if message.text == 'Закончить разговор❌':
+        await cancel(message, state)
+        return
+    await bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_VIDEO)
+
+    tr = Translation(deep_translate_api)
+    text = await tr.translate(message.text, 'en', await tr.detect(message.text))
+
+    ai = VisionAI(visionai_api)
+    gif = (await ai.generate_gif(text))[0]
+
+    await message.answer_animation(BufferedInputFile(gif.getvalue(), 'generated_gif.gif'), caption=f'<b>Text2Gif</b>🎞️: <code>{html.quote(text)}</code>')
 
 # @dp.message(AiState.chatgpt_turbo)
 # async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
