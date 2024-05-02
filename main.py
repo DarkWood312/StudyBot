@@ -6,6 +6,7 @@ from random import shuffle
 
 # import nltk
 from aiogram import Bot, Dispatcher, types, F
+from aiogram.enums import ChatAction
 from aiogram.filters import Filter, Command, CommandStart, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
@@ -345,10 +346,12 @@ async def AiState_llm_choose(message: Message, state: FSMContext):
 
 
 @dp.message(AiState.llm)
-async def AiState_llm(message: Message, state: FSMContext):
+async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
     if message.text == 'Закончить разговор❌':
         await cancel(message, state)
         return
+    await bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+
     data = await state.get_data()
     ai = VisionAI(visionai_api)
     response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
@@ -359,10 +362,11 @@ async def AiState_llm(message: Message, state: FSMContext):
 
 
 @dp.message(AiState.dalle)
-async def AiState_dalle(message: Message, state: FSMContext):
+async def AiState_dalle(message: Message, state: FSMContext, bot: Bot):
     if message.text == 'Закончить разговор❌':
         await cancel(message, state)
         return
+    await bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_PHOTO)
 
     tr = Translation(deep_translate_api)
     text = await tr.translate(message.text, 'en', await tr.detect(message.text))
