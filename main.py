@@ -364,7 +364,7 @@ async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
 
         await state.update_data({'messages': response})
 
-    except AIException.Error as e:
+    except Exception as e:
         logger.error(f'VisionAI error! {e}')
         await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
@@ -380,9 +380,14 @@ async def AiState_dalle(message: Message, state: FSMContext, bot: Bot):
     text = await tr.translate(message.text, 'en', await tr.detect(message.text))
 
     ai = VisionAI(visionai_api)
-    image = await ai.generate_image(text)
+    try:
+        image = await ai.generate_image(text)
 
-    await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'), caption=f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>')
+        await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'), caption=f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>')
+
+    except Exception as e:
+        logger.error(f'VisionAI error! {e}')
+        await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
 @dp.message(AiState.text2gif)
 async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
@@ -395,9 +400,13 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
     text = await tr.translate(message.text, 'en', await tr.detect(message.text))
 
     ai = VisionAI(visionai_api)
-    gif = (await ai.generate_gif(text))[0]
+    try:
+        gif = (await ai.generate_gif(text))[0]
 
-    await message.answer_animation(BufferedInputFile(gif.getvalue(), 'generated_gif.gif'), caption=f'<b>Text2Gif</b>🎞️: <code>{html.quote(text)}</code>')
+        await message.answer_animation(BufferedInputFile(gif.getvalue(), 'generated_gif.gif'), caption=f'<b>Text2Gif</b>🎞️: <code>{html.quote(text)}</code>')
+    except Exception as e:
+        logger.error(f'VisionAI error! {e}')
+        await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
 # @dp.message(AiState.chatgpt_turbo)
 # async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
