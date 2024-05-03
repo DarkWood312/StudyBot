@@ -327,7 +327,7 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
             await state.set_state(AiState.dalle)
         elif 'Stable Diffusion models' in message.text:
             pass
-        elif 'Сгенерировать GIF' in message.text:
+        elif 'Text2GIF' in message.text:
             await message.answer('Пишите ваш запрос.', reply_markup=markup)
             await state.set_state(AiState.text2gif)
         else:
@@ -359,8 +359,14 @@ async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
     ai = VisionAI(visionai_api)
     try:
         response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
-
-        await message.answer(f'<b>{data["model"]}</b>💬: {response[-1]["content"]}')
+        response_content = response[-1]["content"]
+        chunks = await chunker(response_content, 4000)
+        for i in range(len(chunks)):
+            text = ''
+            if i == 0:
+                text += f'<b>{data["model"]}</b>💬: '
+            text += chunks[i]
+            await message.answer(text)
 
         await state.update_data({'messages': response})
 
@@ -1172,7 +1178,7 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
         async with aiohttp.ClientSession() as session:
             formulas = await IndigoMath(session).get_formulas(list(data['fgroup'].values())[int(call.data)])
         lines = [f'<a href="{formulas[f][2]}">{f}</a>' for f in formulas]
-        chunks = [lines[i:i + 70] for i in range(0, len(lines), 70)]
+        chunks = await chunker(lines, 70)
         for chunk in chunks:
             await call.message.answer(
                 f'<b>Формулы по запросу:</b> <i>{html.quote(list(fgroup.keys())[int(call.data)])}</i> <b>({len(formulas)})</b>\n' + '\n'.join(

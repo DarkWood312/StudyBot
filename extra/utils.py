@@ -63,6 +63,10 @@ async def remove_chars_from_text(text, chars) -> str:
 #     return {'amount_of_words': len(wordt), 'amount_of_sentences': len(sentencet), 'amount_of_chars': len(text.lower()),
 #             'amount_of_chars_without_space': len(text.lower().replace(' ', '')), 'image': bio}
 
+async def chunker(text: typing.Sequence, chunk_size: int, pretty_mode: bool = False) -> list[typing.Sequence]:  # TODO
+    if pretty_mode:
+        pass
+    return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 async def orthoepy_word_formatting(words: list, pos: int, amount_of_words: int | None = None):
     """
