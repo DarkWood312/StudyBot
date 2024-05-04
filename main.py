@@ -314,7 +314,8 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         # await message.answer('Действие отменено.', reply_markup=await menu_markup(message.from_user.id))
         await cancel(message, state)
     else:
-        markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌')).as_markup(resize_keyboard=True, one_time_keyboard=True)
+        markup = ReplyKeyboardBuilder().row(KeyboardButton(text='Закончить разговор❌')).as_markup(resize_keyboard=True,
+                                                                                                  one_time_keyboard=True)
         await message.delete()
         if 'LLM' in message.text:
             llms = await VisionAI.get_llm_models()
@@ -387,11 +388,13 @@ async def AiState_dalle(message: Message, state: FSMContext, bot: Bot):
     try:
         image = await ai.generate_image(text)
 
-        await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'), caption=f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>')
+        await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'),
+                                   caption=f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>')
 
     except Exception as e:
         logger.error(f'VisionAI error! {e}')
         await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
+
 
 @dp.message(AiState.text2gif)
 async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
@@ -407,10 +410,12 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
     try:
         gif = (await ai.generate_gif(text))[0]
 
-        await message.answer_animation(BufferedInputFile(gif.getvalue(), 'generated_gif.gif'), caption=f'<b>Text2Gif</b>🎞️: <code>{html.quote(text)}</code>')
+        await message.answer_animation(BufferedInputFile(gif.getvalue(), 'generated_gif.gif'),
+                                       caption=f'<b>Text2Gif</b>🎞️: <code>{html.quote(text)}</code>')
     except Exception as e:
         logger.error(f'VisionAI error! {e}')
         await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
+
 
 @dp.message(AiState.openai_chat)
 async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
@@ -432,9 +437,13 @@ async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
 
         await state.update_data({'messages': response.messages})
 
+        tokens = await sql.get_data(message.from_user.id, 'openai_tokens')
+        await sql.update_data(message.from_user.id, 'openai_tokens', tokens + response.tokens)
+
     except Exception as e:
         logger.error(f'VisionAI error! {e}')
         await message.answer(f'Ошибка. \n{e}')
+
 
 # @dp.message(AiState.chatgpt_turbo)
 # async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
