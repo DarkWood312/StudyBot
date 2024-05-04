@@ -1,5 +1,4 @@
 import asyncio
-from extra.exceptions import AIException
 import re
 from datetime import datetime
 from random import shuffle
@@ -14,7 +13,7 @@ from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaDocument, Bu
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from redis.asyncio.client import Redis
-from formatter_chatgpt_telegram.chatgpt_parser import telegram_format
+from extra.chatgpt_parser import telegram_format
 # from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 from extra.config import *
 from extra.keyboards import *
