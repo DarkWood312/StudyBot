@@ -67,6 +67,7 @@ class AiState(StatesGroup):
     sd_choose = State()
     sd = State()
     text2gif = State()
+    openai_chat = State()
 
 
 class WolframState(StatesGroup):

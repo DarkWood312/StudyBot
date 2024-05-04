@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 from random import shuffle
 
+import httpx
 # import nltk
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.enums import ChatAction
@@ -14,14 +15,14 @@ from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from redis.asyncio.client import Redis
 from extra.chatgpt_parser import telegram_format
-# from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
+# from ai_deprecated.ai_deprecated import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 from extra.config import *
 from extra.keyboards import *
 from extra.states import *
 from extra.utils import *
 from gdz.modern_gdz import ModernGDZ
 from uchus_online.uchus_online import UchusOnline, Task
-from visioncraft_ai.visioncraft_ai import VisionAI
+from AI.AI import VisionAI, TrueOpenAI, ai2text
 
 # from typing import TextIO
 
@@ -322,13 +323,16 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
                 reply_markup=markup)
             await state.set_state(AiState.llm_choose)
         elif 'Dalle' in message.text:
-            await message.answer('Пишите ваш запрос.', reply_markup=markup)
             await state.set_state(AiState.dalle)
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
         elif 'Stable Diffusion models' in message.text:
             pass
         elif 'Text2GIF' in message.text:
-            await message.answer('Пишите ваш запрос.', reply_markup=markup)
             await state.set_state(AiState.text2gif)
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
+        elif 'GPT 4' in message.text and (await sql.get_data(message.from_user.id, 'ai_access')) == True:
+            await state.set_state(AiState.openai_chat)
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -358,17 +362,11 @@ async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
     ai = VisionAI(visionai_api)
     try:
         response = await ai.llm(message.text, model=data['model'], messages=data['messages'])
-        response_content = response[-1]["content"]
-        chunks = await chunker(response_content, 4000)
-        for i in range(len(chunks)):
-            text = ''
-            if i == 0:
-                text += f'**{data["model"]}**💬: '
-            text += chunks[i]
-            print(telegram_format(text))
-            await message.answer(telegram_format(text), parse_mode=ParseMode.HTML)
+        chunks = await ai2text(response, model=data['model'])
+        for chunk in chunks:
+            await message.answer(chunk)
 
-        await state.update_data({'messages': response})
+        await state.update_data({'messages': response.messages})
 
     except Exception as e:
         logger.error(f'VisionAI error! {e}')
@@ -414,6 +412,30 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
         logger.error(f'VisionAI error! {e}')
         await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
+@dp.message(AiState.openai_chat)
+async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
+    if message.text == 'Закончить разговор❌':
+        await cancel(message, state)
+        return
+    await bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+
+    ai = TrueOpenAI(openai_api)
+
+    image = None
+    if message.photo:
+        image = (await bot.download(message.photo[-1].file_id)).read()
+    try:
+        response = await ai.chat(message.text or message.caption or "", image=image)
+        chunks = await ai2text(response, model='GPT 4')
+        for chunk in chunks:
+            await message.answer(chunk)
+
+        await state.update_data({'messages': response.messages})
+
+    except Exception as e:
+        logger.error(f'VisionAI error! {e}')
+        await message.answer(f'Ошибка. \n{e}')
+
 # @dp.message(AiState.chatgpt_turbo)
 # async def chatgpt_turbo_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
@@ -429,29 +451,29 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
 # @dp.message(AiState.midjourney_v4)
 # async def midjourney_v4_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await text2image(message, state, bot, ai.midjourney_v4, 'Midjourney-V4')
+#         ai_deprecated = AI(session)
+#         await text2image(message, state, bot, ai_deprecated.midjourney_v4, 'Midjourney-V4')
 #
 #
 # @dp.message(AiState.midjourney_v6)
 # async def midjourney_v6_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await text2image(message, state, bot, ai.midjourney_v6, 'Midjourney-V6')
+#         ai_deprecated = AI(session)
+#         await text2image(message, state, bot, ai_deprecated.midjourney_v6, 'Midjourney-V6')
 #
 #
 # @dp.message(AiState.playground_v2)
 # async def playground_v2_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await text2image(message, state, bot, ai.playgroundv2, 'Playground-V2')
+#         ai_deprecated = AI(session)
+#         await text2image(message, state, bot, ai_deprecated.playgroundv2, 'Playground-V2')
 #
 #
 # @dp.message(AiState.stable_diffusion_xl_turbo)
 # async def stable_diffusion_xl_turbo_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await text2image(message, state, bot, ai.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
+#         ai_deprecated = AI(session)
+#         await text2image(message, state, bot, ai_deprecated.stable_diffusion_xl_turbo, 'Stable Diffusion XL Turbo')
 #
 #
 # @dp.message(AiState.claude)
@@ -463,7 +485,7 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
 # @dp.message(AiState.mistral_medium)
 # async def mistral_medium_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         # ai = AI(session)
+#         # ai_deprecated = AI(session)
 #         await text2text(message, state, bot, 'mistral-medium', 'Mistral Medium', session)
 #
 #
@@ -497,22 +519,22 @@ async def AiState_text2gif(message: Message, state: FSMContext, bot: Bot):
 # # @dp.message(AiState.dalle3)
 # # async def dalle3_st(message: Message, state: FSMContext, bot: Bot):
 # #     async with aiohttp.ClientSession() as session:
-# #         ai = AI(session)
-# #         await text2image(message, state, bot, ai.dalle3, 'Dall-E 3')
+# #         ai_deprecated = AI(session)
+# #         await text2image(message, state, bot, ai_deprecated.dalle3, 'Dall-E 3')
 #
 #
 # @dp.message(AiState.photomaker)
 # async def photomaker_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await image2image(message, state, bot, ai.photomaker, 'Photomaker')
+#         ai_deprecated = AI(session)
+#         await image2image(message, state, bot, ai_deprecated.photomaker, 'Photomaker')
 #
 #
 # @dp.message(AiState.hcrt)
 # async def hcrt_st(message: Message, state: FSMContext, bot: Bot):
 #     async with aiohttp.ClientSession() as session:
-#         ai = AI(session)
-#         await image2image(message, state, bot, ai.hcrt, 'High-Resolution-Controlnet-Tile')
+#         ai_deprecated = AI(session)
+#         await image2image(message, state, bot, ai_deprecated.hcrt, 'High-Resolution-Controlnet-Tile')
 
 
 @dp.message(Command('wolfram'))
@@ -1186,7 +1208,7 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
         await call.answer()
 
 
-@dp.message(Command('ai'))
+@dp.message(Command('ai_deprecated'))
 async def ai_command(message: Message, state: FSMContext, command: CommandObject):
     if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
         if command.args.startswith('-'):
@@ -1334,7 +1356,7 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
             elif 'ai' in low:
                 await cancel_state(state)
                 await ai_command(message=message, state=state,
-                                 command=CommandObject(prefix='/', command='ai', mention=None))
+                                 command=CommandObject(prefix='/', command='ai_deprecated', mention=None))
                 await message.delete()
             elif 'wolfram' in low:
                 # await cancel_state(state)

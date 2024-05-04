@@ -1,14 +1,24 @@
 import asyncio
+import base64
 import io
 import typing
+from dataclasses import dataclass
 
 import aiogram
 from aiogram.enums import ChatAction
 from openai import AsyncOpenAI
 import aiohttp
 
-from extra.constants import llm_system_message
+from extra.chatgpt_parser import telegram_format
 from extra.exceptions import AIException
+from extra.utils import chunker
+
+
+@dataclass(frozen=True)
+class AIResponse:
+    content: str
+    messages: list[dict[str, str]]
+    tokens: int
 
 
 class VisionAI:
@@ -68,17 +78,21 @@ class VisionAI:
                 return await response.json()
 
     async def llm(self, prompt: str, model: str = 'claude-3-sonnet', messages: list[dict[str, str]] = None, **kwargs) -> \
-            list[dict[str, str]]:
+            AIResponse:
         messages = [{'role': 'user', 'content': prompt}] if messages is None else messages + [
             {'role': 'user', 'content': prompt}]
         client = AsyncOpenAI(api_key=self.api_key, base_url='https://visioncraft.top/v1')
 
-        chat_completion = await client.chat.completions.create(stream=kwargs.get('stream', False), model=model,
-                                                               messages=messages + [
-                                                                   {'role': 'user', 'content': prompt}])
-        if chat_completion.id is None:
-            raise AIException.Error(chat_completion.error['message'])
-        return messages + [{'role': 'assistant', 'content': chat_completion.choices[0].message.content}]
+        response = await client.chat.completions.create(stream=kwargs.get('stream', False), model=model,
+                                                        messages=messages)
+        response_content = response.choices[0].message.content
+
+        if response.id is None:
+            raise AIException.Error(response.error['message'])
+
+        return AIResponse(response_content,
+                          messages + [{'role': 'assistant', 'content': response.choices[0].message.content}],
+                          response.usage.total_tokens)
 
     async def generate_gif(self, prompt: str, sampler: str = 'Euler') -> list[io.BytesIO]:
         async with aiohttp.ClientSession() as session:
@@ -96,3 +110,34 @@ class VisionAI:
                     gifs.append(io.BytesIO(await response.read()))
 
         return gifs
+
+
+class TrueOpenAI:
+    def __init__(self, api_key: str, **kwargs):
+        self.api_key = api_key
+        self.client = AsyncOpenAI(api_key=api_key, **kwargs)
+
+    async def chat(self, prompt: str, model: str = 'gpt-4-turbo', messages: list[dict] = None, image: bytes = None,
+                   **kwargs) -> AIResponse:
+        messages = [
+            {'role': 'user', 'content': [{'type': 'text', 'text': prompt}]}] if messages is None else messages + [
+            {'role': 'user', 'content': [{'type': 'text', 'text': prompt}]}]
+        if image:
+            base64_image = base64.b64encode(image).decode('utf-8')
+            messages[-1]['content'] = messages[-1]['content'] + [{'type': 'image_url', 'image_url': {
+                "url": f"data:image/jpeg;base64,{base64_image}", "detail": kwargs.get("detail", "auto")}}]
+
+        response = await self.client.chat.completions.create(model=model,
+                                                             messages=messages)
+        response_content = response.choices[0].message.content
+
+        return AIResponse(response_content, messages + [{'role': 'assistant', 'content': response_content}],
+                          response.usage.total_tokens)
+
+
+async def ai2text(response: AIResponse, model: str, chunk_size: int = 4000, show_tokens: bool = True) -> list[str]:
+    text = f'<b>{model}</b>💬: ' + telegram_format(response.content)
+    if show_tokens:
+        text += f'\n~<code>{response.tokens}</code>'
+    chunks = await chunker(text, chunk_size)
+    return chunks

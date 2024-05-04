@@ -52,10 +52,12 @@ async def visionai_markup() -> ReplyKeyboardMarkup:
     llm = KeyboardButton(text='LLM models')
     dalle = KeyboardButton(text='Dalle')
     text2gif = KeyboardButton(text='Text2GIF')
+    gpt4 = KeyboardButton(text='GPT 4')
     # sd = KeyboardButton(text='Stable Diffusion models')
 
     markup.row(llm, dalle)
     markup.row(text2gif)
+    markup.row(gpt4)
     # markup.row(sd)
     markup.row(KeyboardButton(text='Отмена❌'))
 
