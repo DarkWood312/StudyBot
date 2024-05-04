@@ -28,7 +28,7 @@ create table users
     user_surname text,
     admin        boolean default false,
     aliases      jsonb default '{}'::jsonb,
-    ai_access    boolean default true
+    ai_access    boolean default false
 );
 ```
 #### orthoepy_problems
