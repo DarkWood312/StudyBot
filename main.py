@@ -14,7 +14,7 @@ from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaDocument, Bu
 from aiogram.utils.markdown import hbold, hcode, hlink
 from aiogram.utils.media_group import MediaGroupBuilder
 from redis.asyncio.client import Redis
-
+from formatter_chatgpt_telegram.chatgpt_parser import telegram_format
 # from ai.ai import AI, text2text, text2image, image2image, GigaAI, ai_func_start
 from extra.config import *
 from extra.keyboards import *
@@ -364,9 +364,10 @@ async def AiState_llm(message: Message, state: FSMContext, bot: Bot):
         for i in range(len(chunks)):
             text = ''
             if i == 0:
-                text += f'<b>{data["model"]}</b>💬: '
+                text += f'**{data["model"]}**💬: '
             text += chunks[i]
-            await message.answer(text)
+            print(telegram_format(text))
+            await message.answer(telegram_format(text), parse_mode=ParseMode.HTML)
 
         await state.update_data({'messages': response})
 
@@ -1198,9 +1199,9 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
             await sql.update_data(command.args, 'ai_access', True)
             await message.answer(f'{command.args} получил доступ к AI')
         return
-    if not (await sql.get_data(message.from_user.id, 'ai_access')):
-        await message.answer('У вас нет доступа к этой функции.')
-        return
+    # if not (await sql.get_data(message.from_user.id, 'ai_access')):
+    #     await message.answer('У вас нет доступа к этой функции.')
+    #     return
     msg = await message.answer('Выберите AI', reply_markup=await visionai_markup())
     await state.update_data({'delete_this_msg': msg})
     await state.set_state(AiState.choose)

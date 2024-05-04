@@ -20,8 +20,7 @@ async def menu_markup(user_id) -> ReplyKeyboardMarkup:
     markup.row(wolfram_button)
     markup.row(desmos_button)
     markup.row(uchus_button)
-    if await sql.get_data(user_id, 'ai_access'):
-        markup.row(ai_button)
+    markup.row(ai_button)
     return markup.as_markup(resize_keyboard=True)
 
 
