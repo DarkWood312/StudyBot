@@ -22,14 +22,15 @@ UCHUS_COOKIES=
 ```
 create table users
 (
-    user_id      bigint not null,
-    upscaled     boolean default false,
-    username     text,
-    user_name    text,
-    user_surname text,
-    admin        boolean default false,
-    aliases      jsonb default '{}'::jsonb,
-    ai_access    boolean default false
+    user_id       bigint not null,
+    upscaled      boolean default false,
+    username      text,
+    user_name     text,
+    user_surname  text,
+    admin         boolean default false,
+    aliases       jsonb   default '{}'::jsonb,
+    ai_access     boolean default false,
+    openai_tokens integer default 0
 );
 ```
 #### orthoepy_problems

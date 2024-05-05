@@ -1217,7 +1217,7 @@ async def state_formulas_out(call: CallbackQuery, state: FSMContext):
         await call.answer()
 
 
-@dp.message(Command('ai_deprecated'))
+@dp.message(Command('ai'))
 async def ai_command(message: Message, state: FSMContext, command: CommandObject):
     if (command.args is not None) and (await sql.get_data(message.from_user.id, 'admin')):
         if command.args.startswith('-'):
@@ -1365,7 +1365,7 @@ async def other_messages(message: Message, bot: Bot, state: FSMContext):
             elif 'ai' in low:
                 await cancel_state(state)
                 await ai_command(message=message, state=state,
-                                 command=CommandObject(prefix='/', command='ai_deprecated', mention=None))
+                                 command=CommandObject(prefix='/', command='ai', mention=None))
                 await message.delete()
             elif 'wolfram' in low:
                 # await cancel_state(state)
