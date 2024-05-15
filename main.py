@@ -431,6 +431,7 @@ async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
         image = (await bot.download(message.photo[-1].file_id)).read()
     try:
         response = await ai.chat(message.text or message.caption or "", image=image)
+        logger.debug(response)
         chunks = await ai2text(response, model='GPT 4')
         for chunk in chunks:
             await message.answer(chunk)

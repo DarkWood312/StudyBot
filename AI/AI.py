@@ -117,7 +117,7 @@ class TrueOpenAI:
         self.api_key = api_key
         self.client = AsyncOpenAI(api_key=api_key, **kwargs)
 
-    async def chat(self, prompt: str, model: str = 'gpt-4-turbo', messages: list[dict] = None, image: bytes = None,
+    async def chat(self, prompt: str, model: str = 'gpt-4o', messages: list[dict] = None, image: bytes = None,
                    **kwargs) -> AIResponse:
         messages = [
             {'role': 'user', 'content': [{'type': 'text', 'text': prompt}]}] if messages is None else messages + [
@@ -130,6 +130,7 @@ class TrueOpenAI:
         response = await self.client.chat.completions.create(model=model,
                                                              messages=messages)
         response_content = response.choices[0].message.content
+
 
         return AIResponse(response_content, messages + [{'role': 'assistant', 'content': response_content}],
                           response.usage.total_tokens)
