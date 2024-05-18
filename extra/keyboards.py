@@ -14,7 +14,7 @@ async def menu_markup(user_id) -> ReplyKeyboardMarkup:
         f'Сжатие изображений - {":cross_mark:" if await sql.get_data(user_id, "upscaled") == 1 else ":check_mark_button:"}'))
     ai_button = KeyboardButton(text='AI🧠🔟')
     wolfram_button = KeyboardButton(text='WolframAlpha📙')
-    desmos_button = KeyboardButton(text='Графический калькулятор📊', web_app=WebAppInfo(url='https://tgbot.dwip.fun/'))
+    desmos_button = KeyboardButton(text='Графический калькулятор📊', web_app=WebAppInfo(url='https://tgbot.dwip.pro/'))
     uchus_button = KeyboardButton(text='Uchus.online🤓')
     markup.row(compress_button)
     markup.row(wolfram_button)
