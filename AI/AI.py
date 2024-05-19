@@ -3,7 +3,7 @@ import base64
 import io
 import typing
 from dataclasses import dataclass
-
+import re
 import aiogram
 from aiogram.enums import ChatAction
 from openai import AsyncOpenAI
@@ -40,11 +40,15 @@ class VisionAI:
 
     async def generate_image(self, prompt: str,
                              variant: typing.Literal['dalle', 'kandinsky', 'playground'] = 'dalle') -> io.BytesIO:
+        size = re.search(r'(^|\s)\d+x\d+(\s|$)', prompt)
+        quality = re.search(r'(^|\s)hd(\s|$)', prompt)
+        prompt = prompt.replace(size.group() if size else '', '').replace(quality.group() if quality else '', '')
         async with aiohttp.ClientSession() as session:
             async with session.post(f'https://visioncraft.top/{variant}', json={
                 'token': self.api_key,
                 'prompt': prompt,
-                'size': '1024x1024'
+                'size': size.group().strip() if size else '1024x1024',
+                'quality': quality.group().strip() if quality else 'standart'
             }) as response:
                 return io.BytesIO(await response.read())
 
@@ -130,7 +134,6 @@ class TrueOpenAI:
         response = await self.client.chat.completions.create(model=model,
                                                              messages=messages)
         response_content = response.choices[0].message.content
-
 
         return AIResponse(response_content, messages + [{'role': 'assistant', 'content': response_content}],
                           response.usage.total_tokens)
