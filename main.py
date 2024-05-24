@@ -334,6 +334,10 @@ async def AiState_choose(message: Message, state: FSMContext, bot: Bot):
         elif 'GPT 4' in message.text and (await sql.get_data(message.from_user.id, 'ai_access')) == True:
             await state.set_state(AiState.openai_chat)
             await message.answer('Пишите ваш запрос.', reply_markup=markup)
+        elif 'true dalle' in message.text.lower() and (await sql.get_data(message.from_user.id, 'ai_access')) == True:
+            await state.set_state(AiState.openai_dalle)
+            await message.answer('Пишите ваш запрос.', reply_markup=markup)
+
         else:
             await message.answer('Нажмите кнопку')
             return
@@ -432,7 +436,7 @@ async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
     try:
         response = await ai.chat(message.text or message.caption or "", image=image)
         logger.debug(response)
-        chunks = await ai2text(response, model='GPT 4')
+        chunks = await ai2text(response, model='GPT 4o')
         for chunk in chunks:
             await message.answer(chunk)
 
@@ -442,8 +446,30 @@ async def AiState_openai_chat(message: Message, state: FSMContext, bot: Bot):
         await sql.update_data(message.from_user.id, 'openai_tokens', tokens + response.tokens)
 
     except Exception as e:
-        logger.error(f'VisionAI error! {e}')
+        logger.error(f'OpenAI error! {e}')
         await message.answer(f'Ошибка. \n{e}')
+
+
+@dp.message(AiState.openai_dalle)
+async def AiState_openai_dalle(message: Message, state: FSMContext, bot: Bot):
+    if message.text == 'Закончить разговор❌':
+        await cancel(message, state)
+        return
+    await bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_PHOTO)
+
+    tr = Translation(deep_translate_api)
+    text = await tr.translate(message.text, 'en', await tr.detect(message.text))
+
+    ai = TrueOpenAI(openai_api)
+    try:
+        image, revised_prompt = await ai.generate_image(text)
+
+        await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'),
+                                   caption=f'<b>True Dall-E</b>🦋: <code>{html.quote(text)}</code>\n\n<tg-spoiler><code>{revised_prompt}</code></tg-spoiler>')
+
+    except Exception as e:
+        logger.error(f'OpenAI error! {e}')
+        await message.answer(f'Ошибка. Попробуйте позже или другую модель.\n{e}')
 
 
 # @dp.message(AiState.chatgpt_turbo)
