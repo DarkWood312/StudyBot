@@ -391,7 +391,7 @@ async def AiState_dalle(message: Message, state: FSMContext, bot: Bot):
     ai = VisionAI(visionai_api)
     try:
         image = await ai.generate_image(text)
-        caption = f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>'[:4000]
+        caption = f'<b>Dall-E</b>🦋: <code>{html.quote(text)}</code>'[:3000]
         await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'),
                                    caption=caption)
         await message.answer_document(BufferedInputFile(image.getvalue(), 'generated_image.png'))
@@ -464,7 +464,7 @@ async def AiState_openai_dalle(message: Message, state: FSMContext, bot: Bot):
     ai = TrueOpenAI(openai_api)
     try:
         image, revised_prompt = await ai.generate_image(text)
-        caption = f'<b>True Dall-E</b>🦋: <code>{html.quote(text)}</code>\n\n<tg-spoiler><code>{revised_prompt}</code></tg-spoiler>'[:4000]
+        caption = f'<b>True Dall-E</b>🦋: <code>{html.quote(text)}</code>\n\n<tg-spoiler><code>{revised_prompt}</code></tg-spoiler>'[:3000]
         await message.answer_photo(BufferedInputFile(image.getvalue(), 'generated_image.png'),
                                    caption=caption)
         await message.answer_document(BufferedInputFile(image.getvalue(), 'generated_image.png'))
