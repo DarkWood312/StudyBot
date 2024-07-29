@@ -20,7 +20,8 @@ async def menu_markup(user_id) -> ReplyKeyboardMarkup:
     markup.row(wolfram_button)
     markup.row(desmos_button)
     markup.row(uchus_button)
-    markup.row(ai_button)
+    if (await sql.get_data(user_id, "ai_access")) == True:
+        markup.row(ai_button)
     return markup.as_markup(resize_keyboard=True)
 
 
@@ -49,14 +50,14 @@ async def menu_markup(user_id) -> ReplyKeyboardMarkup:
 
 async def visionai_markup() -> ReplyKeyboardMarkup:
     markup = ReplyKeyboardBuilder()
-    llm = KeyboardButton(text='LLM models')
-    dalle = KeyboardButton(text='Dalle')
-    text2gif = KeyboardButton(text='Text2GIF')
+    # llm = KeyboardButton(text='LLM models')
+    # dalle = KeyboardButton(text='Dalle')
+    # text2gif = KeyboardButton(text='Text2GIF')
     gpt4 = KeyboardButton(text='GPT 4')
     # sd = KeyboardButton(text='Stable Diffusion models')
 
-    markup.row(llm, dalle)
-    markup.row(text2gif)
+    # markup.row(llm, dalle)
+    # markup.row(text2gif)
     markup.row(gpt4)
     # markup.row(sd)
     markup.row(KeyboardButton(text='Отмена❌'))
