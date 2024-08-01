@@ -9,7 +9,7 @@ from aiogram.enums import ChatAction
 from openai import AsyncOpenAI
 import aiohttp
 
-from extra.chatgpt_md_converter.telegram_formatter import telegram_format
+from chatgpt_md_converter import telegram_format
 from extra.exceptions import AIException
 from extra.utils import chunker
 
