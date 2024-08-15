@@ -1,0 +1,19 @@
+services:
+  studybot:
+    image: dwipok/studybot:latest
+    restart: unless-stopped
+    container_name: studybot-container
+    environment:
+      - API_TOKEN=
+      - SQL_HOST=
+      - SQL_USER=postgres
+      - SQL_PORT=5432
+      - SQL_DATABASE=studybot
+      - SQL_PASSWORD=
+      - REDIS_HOST=
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - OPENAI_API=
+      - WOLFRAM_API=
+      - DEEP_TRANSLATE_API=
+      - UCHUS_COOKIES=

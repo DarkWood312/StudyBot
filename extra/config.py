@@ -7,11 +7,8 @@ from loguru import logger
 
 load_dotenv()
 token = os.getenv('API_TOKEN')
-# futureforge_api = os.getenv('FUTUREFORGE_API')
-visionai_api = os.getenv('VISIONAI_API') or None
 openai_api = os.getenv('OPENAI_API') or None
 wolfram_api = os.getenv('WOLFRAM_API') or None
-gigachat_api = os.getenv('GIGACHAT_API') or None
 uchus_cookies = {k: v for k, v in [i.split('=', 1) for i in os.getenv('UCHUS_COOKIES').split(';')]} or None
 redis_host, redis_password, redis_port = os.getenv('REDIS_HOST') or None, os.getenv('REDIS_PASSWORD') or None, os.getenv('REDIS_PORT') or '5432'
 deep_translate_api = os.getenv('DEEP_TRANSLATE_API') or None

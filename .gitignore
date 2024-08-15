@@ -2,7 +2,6 @@
 __pycache__/
 .env
 desktop.ini
-Dockerfile
 venv
 extra/test_settings.txt
 /debug.log
