@@ -17,3 +17,18 @@ services:
       - WOLFRAM_API=
       - DEEP_TRANSLATE_API=
       - UCHUS_COOKIES=
+  db:
+    image: postgres:17.0
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: dwip312
+      POSTGRES_USER: sasha
+      POSTGRES_DB: studybot
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
