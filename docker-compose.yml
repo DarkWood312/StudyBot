@@ -1,6 +1,6 @@
 services:
   studybot:
-    image: dwipok/studybot:latest
+    image: ghcr.io/dwipok/studybot:latest
     restart: unless-stopped
     container_name: studybot-container
     environment:
@@ -9,7 +9,7 @@ services:
       - SQL_USER=postgres
       - SQL_PORT=5432
       - SQL_DATABASE=studybot
-      - SQL_PASSWORD=
+      - SQL_PASSWORD=DB_PASS
       - REDIS_HOST=
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
@@ -22,8 +22,8 @@ services:
     restart: always
     shm_size: 128mb
     environment:
-      POSTGRES_PASSWORD: dwip312
-      POSTGRES_USER: sasha
+      POSTGRES_PASSWORD: DB_PASS
+      POSTGRES_USER: postgres
       POSTGRES_DB: studybot
       PGDATA: /var/lib/postgresql/data/pgdata
 
