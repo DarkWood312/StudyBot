@@ -1,6 +1,6 @@
 services:
   studybot:
-    image: ghcr.io/dwipok/studybot:latest
+    image: ghcr.io/darkwood312/studybot:release
     restart: unless-stopped
     container_name: studybot-container
     environment:
