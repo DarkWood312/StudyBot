@@ -18,7 +18,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: orthoepy_problems; Type: TABLE; Schema: public; Owner: sasha
+-- Name: orthoepy_problems; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.orthoepy_problems (
@@ -27,10 +27,10 @@ CREATE TABLE public.orthoepy_problems (
 );
 
 
-ALTER TABLE public.orthoepy_problems OWNER TO sasha;
+ALTER TABLE public.orthoepy_problems OWNER TO postgres;
 
 --
--- Name: uchus_online; Type: TABLE; Schema: public; Owner: sasha
+-- Name: uchus_online; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.uchus_online (
@@ -42,10 +42,10 @@ CREATE TABLE public.uchus_online (
 );
 
 
-ALTER TABLE public.uchus_online OWNER TO sasha;
+ALTER TABLE public.uchus_online OWNER TO postgres;
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: sasha
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.users (
@@ -61,10 +61,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO sasha;
+ALTER TABLE public.users OWNER TO postgres;
 
 --
--- Name: wordcloud_settings; Type: TABLE; Schema: public; Owner: sasha
+-- Name: wordcloud_settings; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.wordcloud_settings (
@@ -80,4 +80,4 @@ CREATE TABLE public.wordcloud_settings (
 );
 
 
-ALTER TABLE public.wordcloud_settings OWNER TO sasha;
+ALTER TABLE public.wordcloud_settings OWNER TO postgres;

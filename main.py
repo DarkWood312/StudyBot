@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 from random import shuffle
 
+import cryptography.fernet
 import httpx
 # import nltk
 from aiogram import Bot, Dispatcher, types, F
@@ -661,6 +662,9 @@ async def encryption_command(message: Message, state: FSMContext):
 
 @dp.message(EncryptionState.encrypt_st)
 async def encryption_encrypt_state(message: Message, state: FSMContext):
+    if message.text == 'Закончить❌':
+        await cancel(message, state)
+        return
     msgs_to_del = (await state.get_data())['delete_this_msgs']
     msg = await message.answer('<b>Введите ключ для расшифровки в будущем: </b> (на английском без спец. символов)')
     await state.update_data({'text': message.text, 'method': 'encrypt', 'delete_this_msgs': msgs_to_del + [msg]})
@@ -671,6 +675,9 @@ async def encryption_encrypt_state(message: Message, state: FSMContext):
 
 @dp.message(EncryptionState.decrypt_st)
 async def encryption_decrypt_state(message: Message, state: FSMContext):
+    if message.text == 'Закончить❌':
+        await cancel(message, state)
+        return
     msgs_to_del = (await state.get_data())['delete_this_msgs']
     await state.update_data({'text': message.text, 'method': 'decrypt'})
     msg = await message.answer('<b>Введите ключ для расшифровки: </b> (на английском без спец. символов)')
@@ -682,6 +689,9 @@ async def encryption_decrypt_state(message: Message, state: FSMContext):
 
 @dp.message(EncryptionState.final_st)
 async def encryption_final_state(message: Message, state: FSMContext):
+    if message.text == 'Закончить❌':
+        await cancel(message, state)
+        return
     data = await state.get_data()
     method = data['method']
     text = data['text']
@@ -691,7 +701,11 @@ async def encryption_final_state(message: Message, state: FSMContext):
         if method == 'encrypt':
             result = await enc.encrypt(text)
         else:
-            result = await enc.decrypt(text)
+            try:
+                result = await enc.decrypt(text)
+            except cryptography.fernet.InvalidToken or cryptography.fernet.InvalidSignature:
+                await message.answer('Неверный ключ или шифр!')
+                return
 
         await message.answer(
             f'<b>Результат:</b> <code>{html.quote(result)}</code>\n<b>Ключ:</b> <code>{html.quote(key)}</code>')
@@ -1258,9 +1272,9 @@ async def ai_command(message: Message, state: FSMContext, command: CommandObject
             await sql.update_data(command.args, 'ai_access', True)
             await message.answer(f'{command.args} получил доступ к AI')
         return
-    # if not (await sql.get_data(message.from_user.id, 'ai_access')):
-    #     await message.answer('У вас нет доступа к этой функции.')
-    #     return
+    if not (await sql.get_data(message.from_user.id, 'ai_access')):
+        await message.answer('У вас нет доступа к этой функции.')
+        return
     msg = await message.answer('Выберите AI', reply_markup=await visionai_markup())
     await state.update_data({'delete_this_msg': msg})
     await state.set_state(AiState.choose)
@@ -1578,10 +1592,10 @@ async def callback(call: CallbackQuery, state: FSMContext):
     elif call.data.startswith('encryption_'):
         await cancel_state(state)
         if call.data == 'encryption_encrypt':
-            msg = await call.message.answer('<b>Введите текст для зашифровки: </b>')
+            msg = await call.message.answer('<b>Введите текст для зашифровки: </b>', reply_markup=await reply_cancel_markup())
             await state.set_state(EncryptionState.encrypt_st)
         else:
-            msg = await call.message.answer('<b>Введите шифр для расшифровки: </b>')
+            msg = await call.message.answer('<b>Введите шифр для расшифровки: </b>', reply_markup=await reply_cancel_markup())
             await state.set_state(EncryptionState.decrypt_st)
         await state.update_data({'delete_this_msgs': [msg]})
     await call.answer()
