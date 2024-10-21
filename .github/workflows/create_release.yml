@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     branches:
-      - release  # Change this to your specific branch
+      - release 
 
 jobs:
   release:
@@ -13,10 +13,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Node.js (if needed)
-      uses: actions/setup-node@v3
-      with:
-        node-version: '16' # Specify the Node.js version if your project needs it
+    # - name: Set up Node.js (if needed)
+    #   uses: actions/setup-node@v3
+    #   with:
+    #     node-version: '16' # Specify the Node.js version if your project needs it
+
+    - name: Determine Release Version
+      id: get_version
+      run: echo "RELEASE_VERSION=v1.0.$(date +%s)" >> $GITHUB_ENV
 
     - name: Create Release
       id: create_release
@@ -24,8 +28,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.sha }}
-        release_name: Release ${{ github.sha }}
+        tag_name: ${{ env.RELEASE_VERSION }}
+        release_name: Release ${{ env.RELEASE_VERSION }}
         draft: false
         prerelease: false
 
