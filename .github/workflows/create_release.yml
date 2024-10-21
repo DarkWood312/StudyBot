@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     branches:
-      - release 
+      - release  # Change this to your specific branch
 
 jobs:
   release:
@@ -17,6 +17,17 @@ jobs:
     #   uses: actions/setup-node@v3
     #   with:
     #     node-version: '16' # Specify the Node.js version if your project needs it
+
+    # - name: Install dependencies
+    #   run: npm install  # Adjust this command based on your project
+
+    # - name: Build project
+    #   run: npm run build  # Replace with your build command
+
+    - name: Create ZIP Archive
+      run: |
+        mkdir -p release
+        zip -r release/docker-compose.zip docker-compose.yml sql_init-db/
 
     - name: Determine Release Version
       id: get_version
@@ -39,6 +50,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./path/to/your/asset.zip
+        asset_path: release/docker-compose.zip
         asset_name: docker-compose.zip
         asset_content_type: application/zip
