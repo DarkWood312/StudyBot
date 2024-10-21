@@ -1,3 +1,4 @@
+https://t.me/StudyPomogator_bot
 ### Environment Variables
 ```
 API_TOKEN=
